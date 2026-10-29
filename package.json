@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "lesson": "tsx --env-file-if-exists=.env src/cli.ts",
+    "preview": "tsx --env-file-if-exists=.env src/preview.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

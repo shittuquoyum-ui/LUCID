@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 
+# Local lesson output and card previews
+lesson.md
+samples/
+
 node_modules/
 dist/
 coverage/

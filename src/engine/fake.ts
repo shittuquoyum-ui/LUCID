@@ -3,7 +3,6 @@
  * rest of the pipeline (validation, quote checking, rendering) runs for real.
  * Fake lessons say so in their title; they are never mistaken for the product.
  */
-import { conceptById } from '../concepts';
 import { changedCount, shownLine, type DiffFile, type DiffLine } from './diff';
 import type { ConceptPick, Lesson } from './schemas';
 
@@ -42,20 +41,24 @@ export const fakePick = (files: DiffFile[]): ConceptPick => {
   };
 };
 
+/** Written to pass the plain-English checker, so fake runs exercise the happy path. */
 export const fakeLesson = (pick: ConceptPick): Lesson => {
   const first = pick.evidence[0]!;
-  const name = conceptById(pick.concept)?.name ?? pick.concept;
   return {
-    title: `[fake model] A lesson about ${name.toLowerCase()} would go here`,
-    explanation:
-      'This lesson was written by the fake provider, so the words are placeholders. ' +
-      'The quote below is real: it was copied from the diff and verified by the quote checker. ' +
-      'Set LUCID_WRITE_PROVIDER=meta to get a real lesson.',
+    title: '[fake model] A real lesson would go here',
+    story: [
+      'This card came from the fake model, so the words are stand-ins.',
+      'The line below is real. Lucid copied it from your change and checked it.',
+    ],
     quotes: [{ file: first.file, line: first.line, role: 'shows', code: first.code, note: 'A real line from this change.' }],
-    breaksIf: 'Placeholder: a real lesson says what goes wrong if this is done wrong.',
-    question: 'Placeholder question: which provider wrote this lesson?',
-    options: { A: 'Muse Spark 1.3', B: 'The fake provider', C: 'Muse Spark Open' },
-    answer: 'B',
-    answerWhy: 'LUCID_WRITE_PROVIDER is set to fake, so no model was called.',
+    plainWords: 'A real lesson would say what this line does in everyday words.',
+    question: 'You want a real lesson next time. What should you change?',
+    options: { A: 'Set `LUCID_WRITE_PROVIDER` to `meta`', B: 'Nothing, this lesson is already real', C: 'Delete the line shown above' },
+    answer: 'A',
+    feedback: {
+      A: 'Right. That tells Lucid to ask a real model.',
+      B: 'Not quite. The fake model wrote these words.',
+      C: 'Not quite. The line is real; only the words are stand-ins.',
+    },
   };
 };

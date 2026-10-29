@@ -37,16 +37,26 @@ export const QuoteSchema = z.object({
   note: z.string().min(1).max(300),
 });
 
-/** Step 2: the lesson itself, plus one quick check question. */
+const perLetter = (max: number) =>
+  z.object({ A: z.string().min(1).max(max), B: z.string().min(1).max(max), C: z.string().min(1).max(max) });
+
+/**
+ * Step 2: the lesson card. quotes[0] is "the line that does it".
+ *
+ * The schema only rejects answers too broken to show. The tighter targets
+ * (title of 60 characters, 2 to 4 paragraphs of 3 sentences) are enforced by
+ * the plain-English checker, so a slightly long title earns a retry note
+ * instead of throwing the whole lesson away.
+ */
 export const LessonSchema = z.object({
   title: z.string().min(1).max(120),
-  explanation: z.string().min(1).max(1200),
-  quotes: z.array(QuoteSchema).min(1).max(4),
-  breaksIf: z.string().min(1).max(300),
+  story: z.array(z.string().min(1).max(600)).min(2).max(6),
+  quotes: z.array(QuoteSchema).min(1).max(2),
+  plainWords: z.string().min(1).max(300),
   question: z.string().min(1).max(300),
-  options: z.object({ A: z.string().min(1).max(200), B: z.string().min(1).max(200), C: z.string().min(1).max(200) }),
+  options: perLetter(200),
   answer: z.enum(['A', 'B', 'C']),
-  answerWhy: z.string().min(1).max(300),
+  feedback: perLetter(200),
 });
 
 export type Evidence = z.infer<typeof EvidenceSchema>;

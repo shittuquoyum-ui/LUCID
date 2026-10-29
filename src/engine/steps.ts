@@ -5,6 +5,10 @@
  * pass its schema and pass the quote checker. On failure the model gets ONE
  * more try with the exact problems listed; if that fails too, the PR gets no
  * lesson. No lesson beats a wrong one.
+ *
+ * The lesson is also run through the plain-English checker. Its problems join
+ * the same single retry, but they never cost the lesson: a lesson whose quotes
+ * are true and whose wording is still too technical is kept and marked.
  */
 import { readFileSync } from 'node:fs';
 import { conceptById, conceptListForPrompt } from '../concepts';
@@ -13,8 +17,9 @@ import { fakeLesson, fakePick } from './fake';
 import { parseWith } from './json';
 import { LISTING_LEGEND, renderListing } from './listing';
 import { callModel, type Provider } from './model';
-import { checkEvidence, checkLesson, type LessonCheck } from './quoteCheck';
-import { ConceptPickSchema, LessonSchema, type ConceptPick, type Lesson } from './schemas';
+import { checkPlainEnglish, type PlainCheck } from './plainCheck';
+import { checkEvidence, checkLesson, type CheckedLesson, type LessonCheck } from './quoteCheck';
+import { ConceptPickSchema, LessonSchema, type ConceptPick } from './schemas';
 
 const prompt = (name: string): string => readFileSync(new URL(`../prompts/${name}.md`, import.meta.url), 'utf8');
 
@@ -76,8 +81,10 @@ export const pickConcept = async (files: DiffFile[], title: string | null, provi
 // ---------------------------------------------------------------------------
 
 export interface LessonResult {
-  lesson: Lesson | null;
+  lesson: CheckedLesson | null;
   check: LessonCheck | null;
+  /** The plain-English result for the returned lesson; null when there is no lesson. */
+  plain: PlainCheck | null;
   attempts: Attempt[];
 }
 
@@ -104,9 +111,10 @@ export const writeLesson = async (
   let lastCheck: LessonCheck | null = null;
 
   for (let round = 0; round < 2; round += 1) {
+    const lastRound = round === 1;
     const text = await callModel(
       provider,
-      { system, user: base + (problems.length ? retryNote(problems) : ''), effort: 'medium', maxTokens: 6000 },
+      { system, user: base + (problems.length ? retryNote(problems) : ''), effort: 'medium', maxTokens: 12000 },
       () => JSON.stringify(fakeLesson(pick)),
     );
     const parsed = parseWith(LessonSchema, text);
@@ -117,12 +125,14 @@ export const writeLesson = async (
     }
     const check = checkLesson(parsed.value, files, source);
     lastCheck = check;
-    const notes = check.failed.map((f) => `quote in ${f.item.file} at line ${f.item.line}: ${f.reason}`);
+    const lesson: CheckedLesson = { ...parsed.value, quotes: check.verified };
+    const plain = checkPlainEnglish(lesson);
+    const notes = [...check.failed.map((f) => `quote in ${f.item.file} at line ${f.item.line}: ${f.reason}`), ...plain.problems];
     attempts.push({ step: 'write', provider, problems: notes });
-    if (check.verified.length > 0) {
-      return { lesson: { ...parsed.value, quotes: check.verified }, check, attempts };
+    if (check.verified.length > 0 && (plain.passed || lastRound)) {
+      return { lesson, check, plain, attempts };
     }
     problems = notes.length ? notes : ['no quote could be verified against the diff'];
   }
-  return { lesson: null, check: lastCheck, attempts };
+  return { lesson: null, check: lastCheck, plain: null, attempts };
 };

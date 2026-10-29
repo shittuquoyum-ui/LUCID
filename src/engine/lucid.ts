@@ -1,14 +1,15 @@
 /**
  * The whole agent for one change:
- *   diff -> filter -> pick concept -> write lesson -> verify quotes -> comment
+ *   diff -> filter -> pick concept -> write lesson -> verify quotes -> check plain English -> comment
  */
 import { parseDiff, type DiffSource } from './diff';
 import { filterDiff, type SkippedFile } from './filter';
 import { modelName, providerFor, type Provider } from './model';
+import type { PlainCheck } from './plainCheck';
 import { renderComment } from './render';
 import { pickConcept, writeLesson, type Attempt } from './steps';
-import type { ConceptPick, Lesson } from './schemas';
-import type { LessonCheck, VerifiedQuote } from './quoteCheck';
+import type { ConceptPick } from './schemas';
+import type { CheckedLesson, LessonCheck } from './quoteCheck';
 
 export interface LucidInput {
   diffText: string;
@@ -21,9 +22,11 @@ export interface LucidReport {
   /** 'lesson' = a comment is ready; otherwise why there is none. */
   outcome: 'lesson' | 'nothing-to-teach' | 'no-readable-files' | 'pick-failed' | 'lesson-failed';
   comment: string | null;
-  lesson: (Lesson & { quotes: VerifiedQuote[] }) | null;
+  lesson: CheckedLesson | null;
   pick: ConceptPick | null;
   check: LessonCheck | null;
+  /** Kept lessons can still fail this; the card shows the result. */
+  plain: PlainCheck | null;
   sentFiles: string[];
   skippedFiles: SkippedFile[];
   redactedLines: number;
@@ -42,6 +45,7 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
     lesson: null,
     pick: null,
     check: null,
+    plain: null,
     sentFiles: filtered.files.map((f) => f.path),
     skippedFiles: filtered.skipped,
     redactedLines: filtered.redacted,
@@ -59,9 +63,10 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
   const written = await writeLesson(filtered.files, input.title, picked.pick, input.source, writeProvider);
   report.attempts.push(...written.attempts);
   report.check = written.check;
+  report.plain = written.plain;
   if (!written.lesson) return { ...report, outcome: 'lesson-failed' };
 
-  const lesson = written.lesson as Lesson & { quotes: VerifiedQuote[] };
+  const { lesson } = written;
   const lessonId = `${input.source?.headSha.slice(0, 12) ?? 'local'}-${picked.pick.concept}`;
   return {
     ...report,

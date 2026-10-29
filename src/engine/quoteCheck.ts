@@ -146,6 +146,9 @@ export interface VerifiedQuote extends Quote {
   link: string | null;
 }
 
+/** A lesson after the quote checker: only verified quotes remain. */
+export type CheckedLesson = Lesson & { quotes: VerifiedQuote[] };
+
 export interface FailedItem<T> {
   item: T;
   reason: string;

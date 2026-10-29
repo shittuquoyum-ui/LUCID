@@ -28,16 +28,22 @@ const goodPick = {
   evidence: [{ file: 'supabase/migrations/002_notes_rls.sql', line: 5, status: 'added', code: 'using (auth.uid() = user_id);' }],
 };
 
-const lesson = (quotes: object[]) => ({
-  title: 'You just stopped strangers reading other people’s notes',
-  explanation: 'Before this change any signed-in user could read every note. Now the database itself checks who owns each row.',
+const lesson = (quotes: object[], story = ['Before this change, anyone signed in could read every note in your app.', 'Now your database checks who owns each note first. Like a locker that only opens with its owner’s key.']) => ({
+  title: 'Only the owner can read a note now',
+  story,
   quotes,
-  breaksIf: 'Without it, anyone with your public key could read every note.',
-  question: 'If you deleted line 5, who could read a note?',
-  options: { A: 'Only its owner', B: 'No one', C: 'Anyone signed in' },
-  answer: 'B',
-  answerWhy: 'Row-level security is still on, and with no policy it allows nothing.',
+  plainWords: 'only hand back notes whose owner is the person signed in.',
+  question: 'A friend signs in and opens a link to your note. What do they see?',
+  options: { A: 'Nothing, the note stays hidden', B: 'Your whole note', C: 'Only the note’s title' },
+  answer: 'A',
+  feedback: {
+    A: 'Right. The note isn’t theirs, so it stays hidden.',
+    B: 'Not quite. That was how it worked before.',
+    C: 'Not quite. The whole note is hidden, title too.',
+  },
 });
+
+const jargonStory = ['Your app now checks each object before showing it.', 'Like a bouncer at a door, it only lets the owner in.'];
 
 const realQuote = { file: 'supabase/migrations/002_notes_rls.sql', line: 5, role: 'shows', code: 'using (auth.uid() = user_id);', note: 'Only the owner matches.' };
 const madeUpQuote = { file: 'src/lib/notes.ts', line: 3, role: 'shows', code: 'await checkOwnership(user);', note: 'Invented.' };
@@ -103,5 +109,27 @@ describe('writeLesson', () => {
     answers.push(JSON.stringify(lesson([madeUpQuote])), JSON.stringify(lesson([madeUpQuote])));
     const r = await writeLesson(files, null, pick, null, 'meta');
     expect(r.lesson).toBeNull();
+  });
+
+  it('passes a plain lesson on the first try', async () => {
+    answers.push(JSON.stringify(lesson([realQuote])));
+    const r = await writeLesson(files, null, pick, null, 'meta');
+    expect(r.plain?.passed).toBe(true);
+    expect(r.attempts).toHaveLength(1);
+  });
+
+  it('sends plain-English problems back once, then accepts the fix', async () => {
+    answers.push(JSON.stringify(lesson([realQuote], jargonStory)), JSON.stringify(lesson([realQuote])));
+    const r = await writeLesson(files, null, pick, null, 'meta');
+    expect(r.attempts[0]!.problems).toContain('story paragraph 1 uses "object", say it in everyday words');
+    expect(r.plain?.passed).toBe(true);
+  });
+
+  it('keeps a true lesson whose wording still fails after the retry, marked as failed', async () => {
+    answers.push(JSON.stringify(lesson([realQuote], jargonStory)), JSON.stringify(lesson([realQuote], jargonStory)));
+    const r = await writeLesson(files, null, pick, null, 'meta');
+    expect(r.lesson).not.toBeNull();
+    expect(r.plain?.passed).toBe(false);
+    expect(r.attempts).toHaveLength(2);
   });
 });

@@ -1,10 +1,9 @@
 /**
  * Turning a checked lesson into the comment posted on the pull request.
+ * Same layout as the lesson card, minus the buttons: readers reply A, B or C.
  */
 import { createHmac } from 'node:crypto';
-import { conceptById } from '../concepts';
-import type { VerifiedQuote } from './quoteCheck';
-import type { Lesson } from './schemas';
+import type { CheckedLesson, VerifiedQuote } from './quoteCheck';
 
 const LANG: Record<string, string> = {
   ts: 'ts', tsx: 'tsx', js: 'js', jsx: 'jsx', mjs: 'js', cjs: 'js', json: 'json', sql: 'sql', py: 'python',
@@ -21,15 +20,20 @@ const fence = (code: string): string => {
   return '`'.repeat(longest + 1);
 };
 
-const lineLabel = (q: VerifiedQuote): string =>
+export const lineLabel = (q: { line: number; endLine: number }): string =>
   q.endLine > q.line ? `lines ${q.line}–${q.endLine}` : `line ${q.line}`;
 
-const renderQuote = (q: VerifiedQuote): string => {
-  const where = `\`${q.file}\` ${lineLabel(q)}${q.role === 'removed' ? ' (removed in this change)' : ''}`;
-  const heading = q.link ? `[${where}](${q.link})` : where;
-  const f = fence(q.code);
-  return `**${heading}**: ${q.note}\n${f}${languageOf(q.file)}\n${q.code}\n${f}`;
+const where = (q: VerifiedQuote): string => {
+  const label = `\`${q.file}\` ${lineLabel(q)}${q.role === 'removed' ? ' (removed in this change)' : ''}`;
+  return q.link ? `[${label}](${q.link})` : label;
 };
+
+const codeBlock = (q: VerifiedQuote): string => {
+  const f = fence(q.code);
+  return `${f}${languageOf(q.file)}\n${q.code}\n${f}`;
+};
+
+const LETTERS = ['A', 'B', 'C'] as const;
 
 /**
  * A short code that lets the bot grade a reply later without storing the
@@ -44,39 +48,40 @@ export interface RenderOptions {
   lessonId: string;
 }
 
-export const renderComment = (lesson: Lesson & { quotes: VerifiedQuote[] }, options: RenderOptions): string => {
-  const concept = conceptById(options.concept);
+export const renderComment = (lesson: CheckedLesson, options: RenderOptions): string => {
+  const [key, extra] = lesson.quotes;
+  if (!key) throw new Error('a lesson needs at least one verified quote');
   const code = answerCode(options.lessonId, lesson.answer);
   const marker = `<!-- lucid:lesson v1 id=${options.lessonId} concept=${options.concept}${code ? ` check=${code}` : ''} -->`;
 
   return [
-    `### 🔍 Lucid · ${lesson.title}`,
+    '<sub>🔍 LUCID · WHAT THIS CHANGE DOES</sub>',
     '',
-    lesson.explanation,
+    `### ${lesson.title}`,
     '',
-    '#### In your code',
+    lesson.story.join('\n\n'),
     '',
-    lesson.quotes.map(renderQuote).join('\n\n'),
+    `**The line that does it** · ${where(key)}`,
+    codeBlock(key),
     '',
-    `> ⚠️ **If this goes wrong:** ${lesson.breaksIf}`,
+    `**In plain words:** ${lesson.plainWords}`,
+    ...(extra ? ['', `**Also in this change** · ${where(extra)}: ${extra.note}`, codeBlock(extra)] : []),
     '',
     '#### Quick check',
     '',
     lesson.question,
     '',
-    `**A.** ${lesson.options.A}  `,
-    `**B.** ${lesson.options.B}  `,
-    `**C.** ${lesson.options.C}`,
+    LETTERS.map((l) => `**${l}.** ${lesson.options[l]}`).join('  \n'),
     '',
     'Reply with **A**, **B** or **C**.',
     '',
     '<details><summary>Show the answer</summary>',
     '',
-    `**${lesson.answer}.** ${lesson.answerWhy}`,
+    LETTERS.map((l) => `${l === lesson.answer ? '✅' : '❌'} **${l}.** ${lesson.feedback[l]}`).join('  \n'),
     '',
     '</details>',
     '',
-    `<sub>Lucid explained one change in this PR${concept ? `: ${concept.name.toLowerCase()}` : ''}. Every quote above was checked against the diff. Lucid stores nothing.</sub>`,
+    '<sub>Every quote is checked against your code · Lucid stores nothing</sub>',
     marker,
   ].join('\n');
 };
