@@ -1,0 +1,25 @@
+{
+  "name": "lucid",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An agent that turns every app a vibe coder ships into a lesson about how it actually works.",
+  "type": "module",
+  "scripts": {
+    "lesson": "tsx --env-file-if-exists=.env src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "openai": "^4.104.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vitest": "^3.2.0"
+  }
+}
