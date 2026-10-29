@@ -17,3 +17,7 @@ dist/
 coverage/
 *.log
 .DS_Store
+
+# Python caches (deploy/modal_app.py)
+__pycache__/
+*.pyc
