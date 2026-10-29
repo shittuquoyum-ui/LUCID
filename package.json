@@ -8,7 +8,10 @@
     "lesson": "tsx --env-file-if-exists=.env src/cli.ts",
     "preview": "tsx --env-file-if-exists=.env src/preview.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "server": "tsx --env-file-if-exists=.env src/server/main.ts",
+    "build:server": "node scripts/build-server.mjs",
+    "deploy": "npm run build:server && modal deploy deploy/modal_app.py"
   },
   "engines": {
     "node": ">=20"
@@ -19,6 +22,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "esbuild": "^0.25.12",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vitest": "^3.2.0"

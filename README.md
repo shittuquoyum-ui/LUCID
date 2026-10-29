@@ -43,9 +43,10 @@ Every quote is checked against your code · Lucid stores nothing
 
 ## What Lucid sends, and what it keeps
 
-- **Sends:** the changed lines of up to 5 files from the change, after the filter above.
-- **Never sends:** `.env` files, key files, lockfiles, build output, binaries, or lines that look like keys or tokens.
-- **Keeps:** nothing. No database.
+- **Filters on your machine first:** before anything leaves your computer, the extension drops `.env` files, key files, lockfiles, build output and binaries, and hides lines that look like keys or tokens. Only that filtered diff (the changed lines of up to 5 files) is sent.
+- **Passes through our server:** the filtered diff goes to the Lucid server, which filters it again and sends it to Meta and Baseten to write and check the lesson.
+- **Keeps nothing:** the server stores no diffs, no lessons and no accounts. It only counts lessons per GitHub user per day in memory (20 each), and logs status codes and timings, never your code.
+- **Your own keys instead:** with your own Meta and Baseten keys set in the extension, the filtered diff goes straight to Meta and Baseten and never touches our server.
 - **Models:** Meta's standard mode only, never Contributor mode, so your code is not used for training.
 - Secret filtering is a precaution, not a guarantee. Don't commit secrets.
 - Lucid explains what your change says. It doesn't run your code, so it can't tell you whether the code works.

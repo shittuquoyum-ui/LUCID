@@ -54,6 +54,9 @@ const SECRET_LINE: RegExp[] = [
 
 export const looksLikeSecret = (text: string): boolean => SECRET_LINE.some((re) => re.test(text));
 
+/** What a hidden line shows instead of its text. */
+export const HIDDEN_TEXT = '[hidden by Lucid: looked like a secret]';
+
 export interface FilterOptions {
   /** Most files to keep; the ones with the most changed lines win. */
   maxFiles?: number;
@@ -79,9 +82,11 @@ export const filterDiff = (files: DiffFile[], options: FilterOptions = {}): Filt
       continue;
     }
     const lines = f.lines.map((l) => {
+      // Already hidden on the builder's machine: stays hidden, never quotable.
+      if (l.text === HIDDEN_TEXT) return { ...l, redacted: true };
       if (!looksLikeSecret(l.text)) return l;
       redacted += 1;
-      return { ...l, text: '[hidden by Lucid: looked like a secret]', redacted: true };
+      return { ...l, text: HIDDEN_TEXT, redacted: true };
     });
     kept.push({ ...f, lines });
   }

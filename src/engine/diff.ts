@@ -219,6 +219,57 @@ export const isChange = (l: DiffLine): boolean => l.status === 'added' || l.stat
 /** How many lines a file actually changed (added + removed, not moved). */
 export const changedCount = (f: DiffFile): number => f.lines.filter(isChange).length;
 
+/** The marker a line had in the original diff (a moved line goes back to '-' or '+'). */
+const markerOf = (l: DiffLine): string => {
+  if (l.status === 'added' || (l.status === 'moved' && l.oldLine === null)) return '+';
+  if (l.status === 'removed' || (l.status === 'moved' && l.newLine === null)) return '-';
+  return ' ';
+};
+
+/**
+ * Write files back out as a unified diff, so a filtered diff can be sent
+ * instead of the original. Lines whose numbers are not consecutive start a
+ * new hunk. parseDiff(toUnifiedDiff(files)) gives the same lines back.
+ */
+export const toUnifiedDiff = (files: DiffFile[]): string =>
+  files
+    .map((f) => {
+      const oldPath = f.oldPath ?? f.path;
+      const header = [
+        `diff --git a/${oldPath} b/${f.path}`,
+        ...(f.isNew ? ['new file mode 100644'] : []),
+        ...(f.isDeleted ? ['deleted file mode 100644'] : []),
+        `--- ${f.isNew ? '/dev/null' : `a/${oldPath}`}`,
+        `+++ ${f.isDeleted ? '/dev/null' : `b/${f.path}`}`,
+      ];
+
+      const hunks: DiffLine[][] = [];
+      let nextOld: number | undefined;
+      let nextNew: number | undefined;
+      for (const l of f.lines) {
+        const fits = hunks.length > 0 && (l.oldLine === null || nextOld === undefined || l.oldLine === nextOld) && (l.newLine === null || nextNew === undefined || l.newLine === nextNew);
+        if (!fits) {
+          hunks.push([]);
+          nextOld = undefined;
+          nextNew = undefined;
+        }
+        hunks[hunks.length - 1]!.push(l);
+        if (l.oldLine !== null) nextOld = l.oldLine + 1;
+        if (l.newLine !== null) nextNew = l.newLine + 1;
+      }
+
+      const body = hunks.flatMap((h) => {
+        const olds = h.filter((l) => l.oldLine !== null);
+        const news = h.filter((l) => l.newLine !== null);
+        return [
+          `@@ -${olds[0]?.oldLine ?? 0},${olds.length} +${news[0]?.newLine ?? 0},${news.length} @@`,
+          ...h.map((l) => `${markerOf(l)}${l.text}`),
+        ];
+      });
+      return [...header, ...body].join('\n');
+    })
+    .join('\n') + (files.length ? '\n' : '');
+
 // ---------------------------------------------------------------------------
 // Fetching from GitHub
 // ---------------------------------------------------------------------------
