@@ -4,6 +4,23 @@
   "description": "After each commit, a plain-English lesson about what your change does.",
   "version": "0.1.0",
   "publisher": "lucid-dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shittuquoyum-ui/LUCID.git",
+    "directory": "extension"
+  },
+  "homepage": "https://github.com/shittuquoyum-ui/LUCID#readme",
+  "bugs": {
+    "url": "https://github.com/shittuquoyum-ui/LUCID/issues"
+  },
+  "keywords": [
+    "learn",
+    "beginner",
+    "explain",
+    "git",
+    "commit",
+    "vibe coding"
+  ],
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -63,10 +80,12 @@
   "scripts": {
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "package": "npm run build && vsce package --no-dependencies --out lucid.vsix"
   },
   "devDependencies": {
     "@types/vscode": "~1.90.0",
+    "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.25.12",
     "typescript": "~5.8.2"
   }

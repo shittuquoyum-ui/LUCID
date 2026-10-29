@@ -21,3 +21,6 @@ coverage/
 # Python caches (deploy/modal_app.py)
 __pycache__/
 *.pyc
+
+# Packaged extensions
+*.vsix
