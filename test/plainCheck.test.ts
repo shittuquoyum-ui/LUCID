@@ -6,7 +6,7 @@ import type { Lesson } from '../src/engine/schemas';
 const GOLD: Lesson = {
   title: 'Your app never shows a blank error now',
   story: [
-    'When someone fills in a form wrong, your app shows a short note telling them what to fix.',
+    'When people fill in a form wrong, your app shows them a short note telling them what to fix.',
     'Sometimes that note came through empty. People saw `email:` and nothing after it, so they had no idea what to fix.',
     "Now there's a backup. If the note is empty, your app shows `Validation failed` instead. Like a phone's voicemail: if you never recorded a greeting, it plays a default one.",
   ],
@@ -19,7 +19,7 @@ const GOLD: Lesson = {
       note: 'Uses a backup note when the real one is empty.',
     },
   ],
-  plainWords: "use the message, or if it's empty, use 'Validation failed'. The `||` is the 'or if it's empty' part.",
+  plainWords: "Show the box's name and its note. If the note is empty, show 'Validation failed' instead.",
   question: 'Someone types a password that\'s too short. The message is "Too short". What do they see?',
   options: { A: 'password: Too short', B: 'password: Validation failed', C: 'password: (nothing)' },
   answer: 'A',
@@ -51,6 +51,30 @@ describe('checkPlainEnglish', () => {
     expect(problemsFor({ title: 'Your app has better error handling now' })).toEqual(['title uses "error handling", say it in everyday words']);
   });
 
+  it('flags "field" and suggests "box"', () => {
+    expect(problemsFor({ question: 'Someone leaves the email field empty. What do they see?' })).toEqual([
+      'question uses "field", say it in everyday words (try "box")',
+    ]);
+  });
+
+  it('flags plainWords over 25 words', () => {
+    const plainWords = 'Show the name of the box and the note that goes with it. When that note has nothing in it at all, show a backup note instead.';
+    expect(problemsFor({ plainWords })).toEqual(['plainWords has 27 words; say it in 25 words or fewer']);
+  });
+
+  it('flags plainWords with more than two sentences', () => {
+    expect(problemsFor({ plainWords: 'Show the name. Then the note. Or a backup.' })).toEqual([
+      'plainWords has 3 sentences; use one or two normal sentences',
+    ]);
+  });
+
+  it('flags words glued with hyphens in plainWords, but not ordinary pairs', () => {
+    expect(problemsFor({ plainWords: "Show the note, or-if-empty use 'Validation failed'." })).toEqual([
+      'plainWords glues words with hyphens ("or-if-empty"); write them as a normal sentence',
+    ]);
+    expect(problemsFor({ plainWords: 'Show the note on the sign-in page.' })).toEqual([]);
+  });
+
   it('does not flag words that only contain a developer word', () => {
     expect(problemsFor({ question: 'Someone types a short password. What do they see?' })).toEqual([]);
   });
@@ -79,7 +103,7 @@ describe('checkPlainEnglish', () => {
   });
 
   it('flags camelCase and PascalCase code names outside backticks', () => {
-    expect(problemsFor({ feedback: { ...GOLD.feedback, B: 'Not quite. getErrorMessage keeps the field name.' } })).toEqual([
+    expect(problemsFor({ feedback: { ...GOLD.feedback, B: 'Not quite. getErrorMessage keeps the box name.' } })).toEqual([
       'feedback B uses the code name "getErrorMessage"; put it in backticks and say what it does in everyday words',
     ]);
     expect(problemsFor({ options: { ...GOLD.options, C: 'A ValidationError appears' } })).toEqual([

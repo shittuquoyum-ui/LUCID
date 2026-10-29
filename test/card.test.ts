@@ -3,7 +3,7 @@ import { toCard } from '../src/engine/card';
 import type { LucidReport } from '../src/engine/lucid';
 import { renderComment } from '../src/engine/render';
 import { timeLine } from '../src/terminal';
-import { renderCardHtml } from '../src/ui/cardHtml';
+import { dedent, renderCardHtml } from '../src/ui/cardHtml';
 
 const quote = {
   file: 'src/app.ts',
@@ -65,6 +65,10 @@ describe('lesson card', () => {
     expect(html).toContain('<code>code&lt;x&gt;</code>');
     expect(html).toContain('data-answer="B"');
     expect(html).not.toMatch(/<(link|img)\b|src="http/);
+  });
+
+  it('starts quoted code at the left edge of the box', () => {
+    expect(dedent('        if (a) {\n          b();\n        }')).toBe('if (a) {\n  b();\n}');
   });
 
   it('renders the GitHub comment with the right answer marked', () => {

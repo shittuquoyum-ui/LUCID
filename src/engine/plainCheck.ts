@@ -19,13 +19,18 @@ export const TITLE_MAX = 60;
 export const SENTENCE_MAX_WORDS = 20;
 export const STORY_MAX_PARAGRAPHS = 4;
 export const PARAGRAPH_MAX_SENTENCES = 3;
+export const PLAIN_WORDS_MAX_WORDS = 25;
+export const PLAIN_WORDS_MAX_SENTENCES = 2;
 
 export const JARGON = [
-  'function', 'variable', 'object', 'array', 'string', 'boolean', 'null', 'undefined', 'async', 'await',
+  'field', 'function', 'variable', 'object', 'array', 'string', 'boolean', 'null', 'undefined', 'async', 'await',
   'promise', 'callback', 'API', 'endpoint', 'schema', 'query', 'component', 'props', 'state', 'hook',
   'render', 'middleware', 'validation', 'exception', 'error handling', 'parse', 'instance', 'class',
   'method', 'type', 'interface', 'runtime',
 ];
+
+/** An everyday word to suggest, where one fits most cases. */
+const EVERYDAY: Record<string, string> = { field: 'box' };
 
 /** Product names that happen to look like code names. */
 const BRAND_NAMES = new Set(['GitHub', 'iPhone', 'iPad', 'YouTube', 'PayPal', 'LinkedIn', 'WhatsApp', 'WordPress']);
@@ -35,7 +40,12 @@ export interface PlainCheck {
   problems: string[];
 }
 
-const jargonPatterns = JARGON.map((word) => ({ re: new RegExp(`\\b${word.replace(/ /g, '\\s+')}\\b`, 'i') }));
+const jargonPatterns = JARGON.map((word) => ({
+  re: new RegExp(`\\b${word.replace(/ /g, '\\s+')}\\b`, 'i'),
+  hint: EVERYDAY[word] ? ` (try "${EVERYDAY[word]}")` : '',
+}));
+// Three or more words glued with hyphens ("or-if-empty"); ordinary pairs like "sign-in" are fine.
+const HYPHEN_GLUED = /[\p{L}]+(?:-[\p{L}]+){2,}/u;
 const IDENTIFIER = /\b(?:[a-z]+[A-Z][A-Za-z0-9]*|[A-Z][a-z0-9]+[A-Z][A-Za-z0-9]*)\b/g;
 const NAMING = /\b(?:that['’]?s|that is|this is) called\b/i;
 const PLACEHOLDER = '`…`';
@@ -101,9 +111,9 @@ export const checkPlainEnglish = (lesson: Lesson, changedLines: string[] = []): 
   for (const { label, text } of fields) {
     const plain = readable(text, exempt);
 
-    for (const { re } of jargonPatterns) {
+    for (const { re, hint } of jargonPatterns) {
       const hit = plain.match(re);
-      if (hit) problems.push(`${label} uses "${hit[0]}", say it in everyday words`);
+      if (hit) problems.push(`${label} uses "${hit[0]}", say it in everyday words${hint}`);
     }
 
     const names = new Set([...plain.matchAll(IDENTIFIER)].map((m) => m[0]).filter((n) => !BRAND_NAMES.has(n)));
@@ -121,6 +131,19 @@ export const checkPlainEnglish = (lesson: Lesson, changedLines: string[] = []): 
     const naming = text.match(NAMING);
     if (naming) problems.push(`${label} says "${naming[0]}"; drop the name and just explain the idea`);
   }
+
+  // plainWords should sound like something a person says out loud.
+  const said = readable(lesson.plainWords, exempt);
+  const saidWords = wordCount(said);
+  if (saidWords > PLAIN_WORDS_MAX_WORDS) {
+    problems.push(`plainWords has ${saidWords} words; say it in ${PLAIN_WORDS_MAX_WORDS} words or fewer`);
+  }
+  const saidSentences = sentencesOf(said).length;
+  if (saidSentences > PLAIN_WORDS_MAX_SENTENCES) {
+    problems.push(`plainWords has ${saidSentences} sentences; use one or two normal sentences`);
+  }
+  const glued = said.match(HYPHEN_GLUED);
+  if (glued) problems.push(`plainWords glues words with hyphens ("${glued[0]}"); write them as a normal sentence`);
 
   if (lesson.title.length > TITLE_MAX) {
     problems.push(`title is ${lesson.title.length} characters; make it ${TITLE_MAX} or fewer`);

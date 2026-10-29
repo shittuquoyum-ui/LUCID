@@ -7,15 +7,17 @@ import { fetchGitHubDiff, isGitHubUrl } from './engine/diff';
 import { runLucid, type LucidReport } from './engine/lucid';
 import { isProvider, type Provider } from './engine/model';
 
-const VALUE_FLAGS = new Set(['--provider', '--pick', '--write']);
+const VALUE_FLAGS = new Set(['--provider', '--pick', '--write', '--tag']);
+
+/** The value after `--name`, if given. */
+export const flagValue = (args: string[], name: string): string | undefined => {
+  const i = args.indexOf(`--${name}`);
+  return i >= 0 ? args[i + 1] : undefined;
+};
 
 export const runFromArgs = async (args: string[], command: string): Promise<LucidReport> => {
-  const flag = (name: string): string | undefined => {
-    const i = args.indexOf(`--${name}`);
-    return i >= 0 ? args[i + 1] : undefined;
-  };
   const providerFlag = (name: string): Provider | undefined => {
-    const v = flag(name);
+    const v = flagValue(args, name);
     if (v === undefined) return undefined;
     if (!isProvider(v)) throw new Error(`--${name} must be fake, meta or baseten (got "${v}")`);
     return v;

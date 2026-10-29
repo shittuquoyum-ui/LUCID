@@ -23,7 +23,15 @@ const where = (q: CardQuote): string => {
     : `<span>${label}</span>`;
 };
 
-const codeBox = (q: CardQuote): string => `<pre class="code"><code>${escapeHtml(q.code)}</code></pre>`;
+/** Drop the indent the lines share, so quoted code starts at the box's left edge. */
+export const dedent = (code: string): string => {
+  const lines = code.replace(/\t/g, '  ').split('\n');
+  const indents = lines.filter((l) => l.trim()).map((l) => l.match(/^ */)![0].length);
+  const common = indents.length ? Math.min(...indents) : 0;
+  return lines.map((l) => l.slice(common)).join('\n');
+};
+
+const codeBox = (q: CardQuote): string => `<pre class="code"><code>${escapeHtml(dedent(q.code))}</code></pre>`;
 
 const CSS = `
 :root {
@@ -51,8 +59,11 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .where { font-size: 14px; margin-bottom: 6px; }
 code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
-pre.code { margin: 0 0 12px; padding: 12px 14px; overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
-pre.code code { background: none; border: 0; padding: 0; font-size: 14px; white-space: pre; }
+pre.code {
+  margin: 0 0 12px; padding: 12px 14px; max-width: 100%; overflow-x: auto; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+}
+pre.code code { display: block; width: max-content; min-width: 100%; background: none; border: 0; padding: 0; font-size: 14px; white-space: pre; }
 .plain { padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 8px 8px 0; }
 .options { display: grid; gap: 8px; margin: 12px 0; }
 .opt {

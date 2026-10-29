@@ -5,16 +5,22 @@
  *
  * Writes samples/preview.html (the card page) and samples/card.json (the card
  * data), prints the report to stderr and the page's path to stdout.
+ * `--tag 2` writes samples/preview-2.html and samples/card-2.json instead.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { toCard } from './engine/card';
-import { reportLines, runFromArgs } from './terminal';
+import { flagValue, reportLines, runFromArgs } from './terminal';
 import { renderCardHtml } from './ui/cardHtml';
 
 const main = async () => {
-  const report = await runFromArgs(process.argv.slice(2), 'preview');
+  const args = process.argv.slice(2);
+  const tag = flagValue(args, 'tag');
+  if (tag !== undefined && !/^[\w-]+$/.test(tag)) throw new Error('--tag may only use letters, digits, "-" and "_"');
+  const suffix = tag ? `-${tag}` : '';
+
+  const report = await runFromArgs(args, 'preview');
   for (const line of reportLines(report)) console.error(line);
 
   const card = toCard(report);
@@ -25,9 +31,9 @@ const main = async () => {
 
   const dir = fileURLToPath(new URL('../samples/', import.meta.url));
   mkdirSync(dir, { recursive: true });
-  const page = join(dir, 'preview.html');
+  const page = join(dir, `preview${suffix}.html`);
   writeFileSync(page, renderCardHtml(card), 'utf8');
-  writeFileSync(join(dir, 'card.json'), `${JSON.stringify(card, null, 2)}\n`, 'utf8');
+  writeFileSync(join(dir, `card${suffix}.json`), `${JSON.stringify(card, null, 2)}\n`, 'utf8');
   console.log(page);
 };
 
