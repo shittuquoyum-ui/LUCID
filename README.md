@@ -103,5 +103,6 @@ npm run typecheck
 - [x] Card page (HTML) with a clickable quick check, and `npm run preview`
 - [x] VS Code extension (smallest version): lesson after each new commit, toast, card panel, keys in secret storage (VS Code and Cursor)
 - [ ] Backend for the extension (model calls without keys on the builder's machine)
+- [ ] Repo context: before writing, search the repository for related code (e.g. other mentions of the same table) so lessons can say what a change backs up
 - [ ] GitHub comment bot (renderer kept working with the new card layout)
 - [ ] Quality testing with real builders

@@ -17,7 +17,8 @@ vi.mock('../src/engine/model', async (importOriginal) => {
 const { parseDiff } = await import('../src/engine/diff');
 const { filterDiff } = await import('../src/engine/filter');
 const { pickConcept, writeLesson } = await import('../src/engine/steps');
-const { RECREATED_RULE_DIFF, RLS_DIFF } = await import('./fixtures');
+const { callModel } = await import('../src/engine/model');
+const { DELETE_OWNERSHIP_DIFF, RECREATED_RULE_DIFF, RLS_DIFF } = await import('./fixtures');
 
 const { files } = filterDiff(parseDiff(RLS_DIFF));
 
@@ -193,6 +194,41 @@ describe('writeLesson', () => {
     answers.push(JSON.stringify(lesson([realQuote])), mixed, JSON.stringify(lesson([realQuote])), mixed);
     const r = await writeLesson(files, null, pick, null, 'meta', 'baseten');
     expect(r.lesson).toBeNull();
+  });
+
+  it('drops a lesson claiming "before, anyone could delete" (delete-ownership case)', async () => {
+    const deleteFiles = filterDiff(parseDiff(DELETE_OWNERSHIP_DIFF)).files;
+    const ownerQuote = { file: 'apps/web/src/data/user/privateItems.ts', line: 46, role: 'shows', code: ".eq('owner_id', ctx.userId);", note: 'Also matches the owner.' };
+    const overclaim = {
+      ...lesson([ownerQuote], [
+        'Before, anyone could delete someone else’s item by guessing its number.',
+        'Now your delete step checks who owns the item first. Like a locker that only opens for its own key.',
+      ]),
+      title: 'People can no longer delete each other’s items',
+      plainWords: 'Remove the item only if it belongs to the person asking.',
+      question: 'You try to delete an item you own. What happens?',
+      options: { A: 'It is removed', B: 'It stays put', C: 'It becomes public' },
+    };
+    const unprovable = verdict({
+      claimsTrue: false,
+      wrongClaims: ['Story paragraph 1 says anyone could delete other people’s items before, but nothing shown proves that; another rule may already have blocked it'],
+    });
+    const deletePick = { ...goodPick, concept: 'authorization', evidence: [{ ...ownerQuote, status: 'added' }] } as unknown as Parameters<typeof writeLesson>[2];
+
+    vi.mocked(callModel).mockClear();
+    answers.push(JSON.stringify(overclaim), unprovable, JSON.stringify(overclaim), unprovable);
+    const r = await writeLesson(deleteFiles, 'Only let people delete their own items', deletePick, null, 'meta', 'baseten');
+    expect(r.lesson).toBeNull();
+    expect(r.review?.claimsTrue).toBe(false);
+
+    // The fact checker was given the rule, the real BEFORE and AFTER, and the claim to judge.
+    const reviewCall = vi.mocked(callModel).mock.calls.map((c) => c[1]).find((c) => c.system.includes('fact checker'))!;
+    expect(reviewCall.system).toContain('Unprovable = wrong');
+    expect(reviewCall.user).toMatch(/--- BEFORE ---[\s\S]*\.eq\('id', parsedInput\.id\);[\s\S]*--- AFTER ---[\s\S]*\.eq\('owner_id', ctx\.userId\);/);
+    expect(reviewCall.user).toContain('Before, anyone could delete someone else’s item');
+    // The writer heard why, in the retry.
+    const retry = vi.mocked(callModel).mock.calls.map((c) => c[1]).filter((c) => c.system.includes('You write lesson cards'))[1]!;
+    expect(retry.user).toContain('fact check found a false claim: Story paragraph 1 says anyone could delete');
   });
 
   it('asks the fact checker again when its answer is not valid JSON', async () => {

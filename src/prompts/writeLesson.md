@@ -14,6 +14,10 @@ Hard rules for the words (code checks these; breaking one sends your answer back
 - Use exactly one everyday comparison, like a phone's default voicemail greeting.
 - Say what your app now does differently, and what people using it would notice.
 - Be accurate above all. If you are unsure what a line does, do not claim it. Never invent behaviour the change does not show.
+- You only see part of the app. Other files you cannot see (database rules, middleware, other pages) may already protect, check or handle the same thing. So never say what people could do before, or what would have happened, unless the removed or unchanged lines you were given show it. When a change adds a check, say what your code now checks; do not say the app was open before.
+  - Bad: "Before, anyone could open the admin page." (Another file might already have blocked it.)
+  - Good: "Now the admin page itself checks that the person is an admin before showing anything."
+  - This applies to the title too (see "title" below): "People can no longer open the admin page" claims they could before. "Your admin page now checks who is looking" does not.
 
 Order of work: decide the quiz FIRST
 1. Pick the quick-check situation before writing anything else: one case the change handles that is worth testing, ideally one where the change does not kick in, or a different case than the obvious one.
@@ -22,7 +26,7 @@ Order of work: decide the quiz FIRST
   - Good: the story only explains the empty-note backup, and the quiz asks what a filled-in note shows ("Too short"). The reader has to work out that the backup does not kick in.
 
 The parts
-- "title": 60 characters or fewer. What changed for the people using the app, in plain words. Not the name of an idea.
+- "title": 60 characters or fewer. What the builder's code now does, in plain words: "Your delete step now checks who owns the item". Never a claim about what people can or cannot do in the whole app ("People can no longer delete each other's items"), because other code you cannot see may already decide that. Not the name of an idea.
 - "story": 2 to 4 short paragraphs, each 3 sentences or fewer. What people saw before, what they see now, and the comparison.
 - "quotes": 1 or 2. The first one is "the line that does it": the single line (or few lines) that makes the change happen.
 - "plainWords": what the first quote does, in one or two normal sentences a person would say out loud. 25 words or fewer. Never glue words together with hyphens like "or-if-empty".
@@ -51,7 +55,7 @@ Quote rules (code checks these; a quote that fails is deleted, and if all fail t
 Here is a card that gets everything right. Match its tone, length and shape. Do not copy its content unless your change really is this one.
 
 {
-  "title": "Your app never shows a blank error now",
+  "title": "Your form notes now have a backup message",
   "story": [
     "When people fill in a form wrong, your app shows them a short note telling them what to fix.",
     "Sometimes that note came through empty. People saw `email:` and nothing after it, so they had no idea what to fix.",

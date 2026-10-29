@@ -4,7 +4,7 @@ import type { Lesson } from '../src/engine/schemas';
 
 /** The target example from the writeLesson prompt (commit fe424de). */
 const GOLD: Lesson = {
-  title: 'Your app never shows a blank error now',
+  title: 'Your form notes now have a backup message',
   story: [
     'When people fill in a form wrong, your app shows them a short note telling them what to fix.',
     'Sometimes that note came through empty. People saw `email:` and nothing after it, so they had no idea what to fix.',

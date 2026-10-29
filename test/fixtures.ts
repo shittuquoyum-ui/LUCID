@@ -52,6 +52,34 @@ index 0000000..7777777
 +}
 `;
 
+/**
+ * The delete-ownership commit tested in the editor: the delete step now also
+ * matches the owner. A database rule elsewhere already blocked deleting other
+ * people's items, so "before, anyone could delete" cannot be proven from this.
+ */
+export const DELETE_OWNERSHIP_DIFF = `diff --git a/apps/web/src/data/user/privateItems.ts b/apps/web/src/data/user/privateItems.ts
+index d4c708a..20bc4e6 100644
+--- a/apps/web/src/data/user/privateItems.ts
++++ b/apps/web/src/data/user/privateItems.ts
+@@ -36,12 +36,14 @@ const deletePrivateItemSchema = z.object({
+
+ export const deletePrivateItemAction = authActionClient
+   .schema(deletePrivateItemSchema)
+-  .action(async ({ parsedInput }) => {
++  .action(async ({ parsedInput, ctx }) => {
+     const supabaseClient = await createSupabaseClient();
++    // Only delete the item if it belongs to the signed-in user
+     const { error } = await supabaseClient
+       .from('private_items')
+       .delete()
+-      .eq('id', parsedInput.id);
++      .eq('id', parsedInput.id)
++      .eq('owner_id', ctx.userId);
+
+     if (error) {
+       throw new Error(error.message);
+`;
+
 /** A small, realistic pull request diff: adds row-level security to a notes table. */
 export const RLS_DIFF = `diff --git a/supabase/migrations/002_notes_rls.sql b/supabase/migrations/002_notes_rls.sql
 new file mode 100644

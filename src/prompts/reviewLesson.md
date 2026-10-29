@@ -15,6 +15,11 @@ Step 2: check the claims ("claimsTrue", "wrongClaims")
 - Check the title, every story paragraph, plainWords, the question, all three options, the marked answer and all three feedback sentences against the real difference and against AFTER.
 - A claim is wrong when it says something is new or different that behaves the same BEFORE and AFTER; when it describes behaviour the code does not show; when it says who can do what and the code says otherwise; or when the marked answer is not actually right for AFTER.
 - Feedback counts as claims. Any feedback sentence that states something false about the code (for example "the button stays grey while saving" when AFTER never greys it out) is a wrong claim, even if the marked answer is right. A wrong option is fine; it is meant to be wrong.
+- Unprovable = wrong. You see only the changed parts of a few files. Any claim about something outside what you were shown is wrong, because it cannot be proven from this change. That covers:
+  - other files, the database and its rules, middleware, other pages, settings;
+  - what was possible or what happened BEFORE, unless the removed or unchanged lines shown prove it ("before, anyone could open the admin page", "people could sign up with no email");
+  - what people can or cannot do in the whole app ("people can no longer…", "nobody can now…"), when the change only shows one piece of code checking something.
+- A newly added check proves that this code now checks. It does not prove that nothing checked before, or that the whole app is now safe. A title like "People can no longer open the admin page" is a wrong claim; "Your admin page now checks who is looking" is fine.
 - Plain, simplified wording is fine if it is true. Do not flag a claim only for being simple, or for leaving details out.
 - For each wrong claim, write one sentence in "wrongClaims": quote the wrong words and say what is actually true. Example: "The title says people can now reset their password by email, but that reset link already worked before; this change only moves it."
 - "claimsTrue" is true only when "wrongClaims" is empty.
