@@ -38,8 +38,14 @@ app = modal.App("lucid", image=image)
     # copy would double them. One always-on container also means no cold starts.
     min_containers=1,
     max_containers=1,
+    # A lesson mostly waits on the model APIs, so one small container runs
+    # many at once (tested: 10 in parallel). 0.25 core and 512 MiB leave room
+    # for ten 2 MB requests; billed per second whether busy or idle.
+    cpu=0.25,
+    memory=512,
     timeout=600,
 )
+# Up to 50 requests at the same time in the one container.
 @modal.concurrent(max_inputs=50)
 @modal.web_server(PORT, startup_timeout=30)
 def server():

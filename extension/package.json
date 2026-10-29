@@ -27,6 +27,10 @@
         "title": "Lucid: Set API keys"
       },
       {
+        "command": "lucid.signIn",
+        "title": "Lucid: Sign in with GitHub"
+      },
+      {
         "command": "lucid.explainLastCommit",
         "title": "Lucid: Explain my last commit"
       },
@@ -42,6 +46,16 @@
           "type": "boolean",
           "default": true,
           "description": "Explain each new commit automatically, in the background."
+        },
+        "lucid.useOwnKeys": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use your own Meta and Baseten keys (set with \"Lucid: Set API keys\") instead of Lucid's server. Your filtered diff then goes straight to Meta and Baseten."
+        },
+        "lucid.serverUrl": {
+          "type": "string",
+          "default": "https://shittuquoyum-ui--lucid-server.us-east.modal.run",
+          "description": "The Lucid server that writes lessons when you are signed in with GitHub."
         }
       }
     }

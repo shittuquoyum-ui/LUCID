@@ -84,7 +84,7 @@ npm run build        # bundles the extension and the engine into extension/dist
 ```
 
 1. Open this repository in VS Code and press **F5** ("Run Lucid extension"). A second window opens: the Extension Development Host.
-2. In that window, open the command palette and run **Lucid: Set API keys** (Meta, then Baseten). Keys go to the editor's secret storage, never to settings or files.
+2. In that window, open the command palette and run **Lucid: Sign in with GitHub**. Lessons are then written on Lucid's server (20 a day). To use your own Meta and Baseten keys instead, run **Lucid: Set API keys** and turn on `lucid.useOwnKeys`; editors without GitHub sign-in use your own keys automatically.
 3. Open any git repository there, change something, and commit.
 4. Keep working. When the lesson is ready, a toast appears: **Lucid: …** with **Show me**. The status bar shows what Lucid is doing.
 
@@ -103,7 +103,7 @@ npm run typecheck
 - [x] Plain-English lesson card: new lesson shape, plain-English checker, card JSON
 - [x] Card page (HTML) with a clickable quick check, and `npm run preview`
 - [x] VS Code extension (smallest version): lesson after each new commit, toast, card panel, keys in secret storage (VS Code and Cursor)
-- [ ] Backend for the extension (model calls without keys on the builder's machine)
+- [x] Backend on Modal: POST /lesson with GitHub sign-in, 20 lessons per user per day, global cap and kill switch; the extension filters locally and uses it by default
 - [ ] Repo context: before writing, search the repository for related code (e.g. other mentions of the same table) so lessons can say what a change backs up
 - [ ] GitHub comment bot (renderer kept working with the new card layout)
 - [ ] Quality testing with real builders

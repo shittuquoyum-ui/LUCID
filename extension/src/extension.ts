@@ -3,8 +3,12 @@
  * background and, when a lesson is ready, says so in a toast. "Show me" opens
  * the lesson card beside the editor. The builder never has to ask.
  *
- * Keys live in the editor's secret storage and are handed to the engine
- * directly; they never touch settings, files, process.env or logs.
+ * By default the lesson is written on Lucid's server: the builder signs in
+ * with GitHub, the diff is filtered here, and only the filtered diff is sent.
+ * With their own keys (lucid.useOwnKeys, or an editor without GitHub
+ * sign-in) the engine runs right here instead. Own keys live in the editor's
+ * secret storage and are handed to the engine directly; they never touch
+ * settings, files, process.env or logs.
  */
 import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
@@ -19,12 +23,19 @@ import { reportLines } from '../../src/terminal';
 import { renderCardHtml } from '../../src/ui/cardHtml';
 import { commitDiff, commitSubject, headCommit, lastReflogSubject, parentsOf, type CommitRef, type GitApi, type GitExtension, type GitRepository } from './git';
 import { MISSING_KEYS, NO_LESSON, plainReason } from './messages';
+import { askServer, DEFAULT_SERVER_URL } from './server';
 import { classifyHeadChange, RunQueue } from './trigger';
 
 const SECRETS = { meta: 'lucid.metaApiKey', baseten: 'lucid.basetenApiKey' } as const;
 
-const STEP_TEXT: Record<LucidStep | 'reading', string> = {
+const GITHUB_SCOPES = ['read:user'];
+const NO_GITHUB = "This editor has no GitHub sign-in Lucid can use. Set your own API keys instead.";
+
+const settings = () => vscode.workspace.getConfiguration('lucid');
+
+const STEP_TEXT: Record<LucidStep | 'reading' | 'server', string> = {
   reading: 'Reading the commit',
+  server: "Writing and checking the lesson on Lucid's server",
   picking: 'Picking the one idea worth explaining',
   writing: 'Writing the lesson',
   'fact-checking': 'Fact-checking the lesson',
@@ -93,14 +104,77 @@ export function activate(context: vscode.ExtensionContext): void {
     panel.onDidDispose(() => (panel = undefined), null, context.subscriptions);
   };
 
+  // --- GitHub sign-in (for Lucid's server) ----------------------------------
+  /** The session; 'none' when not signed in; 'unavailable' when this editor has no GitHub sign-in at all. */
+  const githubSession = async (): Promise<vscode.AuthenticationSession | 'none' | 'unavailable'> => {
+    try {
+      return (await vscode.authentication.getSession('github', GITHUB_SCOPES, { silent: true })) ?? 'none';
+    } catch {
+      // Silent never prompts, so throwing means the provider is missing (possible in some editors, e.g. Cursor).
+      return 'unavailable';
+    }
+  };
+  const signIn = async (fresh = false): Promise<boolean> => {
+    try {
+      const options = fresh ? { forceNewSession: { detail: 'Lucid needs a new GitHub sign-in.' } } : { createIfNone: true };
+      return !!(await vscode.authentication.getSession('github', GITHUB_SCOPES, options));
+    } catch {
+      return false; // cancelled, or no GitHub sign-in in this editor
+    }
+  };
+  const askToSignIn = (commit: CommitRef | null, message = 'Sign in with GitHub so Lucid can explain your commits.', fresh = false) =>
+    void vscode.window.showInformationMessage(message, 'Sign in').then(async (choice) => {
+      if (choice === 'Sign in' && (await signIn(fresh)) && commit) queue.request(commit);
+    });
+
   // --- one run --------------------------------------------------------------
+  /** Show what a run produced: a toast for a lesson, a quiet note for nothing, a warning otherwise. */
+  const present = (sha: string, outcome: string, card: LessonCard | null, report: string[]) => {
+    console.log(`[Lucid] ${sha.slice(0, 7)}\n${report.join('\n')}`);
+    if (card) {
+      lastCard = card;
+      void vscode.window.showInformationMessage(`Lucid: ${card.title}`, 'Show me', 'Later').then((choice) => {
+        if (choice === 'Show me') showCard(card);
+      });
+    } else if (outcome === 'nothing-to-teach' || outcome === 'no-readable-files') {
+      vscode.window.setStatusBarMessage('Lucid: nothing worth a lesson in this commit', 8000);
+    } else {
+      void vscode.window.showWarningMessage(NO_LESSON);
+    }
+  };
+
   const explain = async (commit: CommitRef) => {
+    // Lucid's server by default; the builder's own keys when they chose that,
+    // or when this editor has no GitHub sign-in.
     const keys = await readKeys();
-    if (!keys) return askForKeys();
-    useApiKeys(keys);
+    let token: string | null = null;
+    if (settings().get<boolean>('useOwnKeys', false)) {
+      if (!keys) return askForKeys();
+    } else {
+      const session = await githubSession();
+      if (session === 'none') return askToSignIn(commit);
+      if (session === 'unavailable') {
+        if (!keys) return askForKeys(NO_GITHUB);
+      } else {
+        token = session.accessToken;
+      }
+    }
+
     showBusy('reading');
     try {
       const [diffText, title] = await Promise.all([commitDiff(commit), commitSubject(commit)]);
+
+      if (token) {
+        showBusy('server');
+        const answer = await askServer(settings().get<string>('serverUrl', DEFAULT_SERVER_URL) || DEFAULT_SERVER_URL, token, diffText, title);
+        if (answer.kind === 'done') return present(commit.sha, answer.outcome, answer.card, answer.report);
+        if (answer.kind === 'nothing-to-send') return present(commit.sha, 'no-readable-files', null, ['nothing left to send after filtering']);
+        console.log(`[Lucid] ${commit.sha.slice(0, 7)} server: ${answer.message}`);
+        if (answer.action === 'sign-in') return askToSignIn(commit, answer.message, true);
+        return void vscode.window.showWarningMessage(answer.message);
+      }
+
+      useApiKeys(keys!);
       const report = await runLucid({
         diffText,
         source: null,
@@ -108,19 +182,7 @@ export function activate(context: vscode.ExtensionContext): void {
         providers: { pick: 'baseten', write: 'meta' },
         onStep: showBusy,
       });
-      console.log(`[Lucid] ${commit.sha.slice(0, 7)}\n${reportLines(report).join('\n')}`);
-
-      const card = toCard(report);
-      if (card) {
-        lastCard = card;
-        void vscode.window.showInformationMessage(`Lucid: ${card.title}`, 'Show me', 'Later').then((choice) => {
-          if (choice === 'Show me') showCard(card);
-        });
-      } else if (report.outcome === 'nothing-to-teach' || report.outcome === 'no-readable-files') {
-        vscode.window.setStatusBarMessage('Lucid: nothing worth a lesson in this commit', 8000);
-      } else {
-        void vscode.window.showWarningMessage(NO_LESSON);
-      }
+      present(commit.sha, report.outcome, toCard(report), reportLines(report));
     } catch (err) {
       // Only the error's kind is logged: some services echo part of a rejected key in their messages.
       const e = err as { name?: string; status?: number };
@@ -135,7 +197,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const queue = new RunQueue<CommitRef>(explain);
 
   // --- watching for new commits ---------------------------------------------
-  const autoExplain = () => vscode.workspace.getConfiguration('lucid').get<boolean>('autoExplain', true);
+  const autoExplain = () => settings().get<boolean>('autoExplain', true);
   const heads = new Map<GitRepository, string | undefined>();
   const watchers = new Map<GitRepository, vscode.Disposable>();
 
@@ -203,6 +265,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('lucid.setKeys', setKeys),
+    vscode.commands.registerCommand('lucid.signIn', async () => {
+      if ((await githubSession()) === 'unavailable') return askForKeys(NO_GITHUB);
+      if (await signIn()) void vscode.window.showInformationMessage('Lucid: signed in with GitHub. Your next commit gets a lesson.');
+    }),
     vscode.commands.registerCommand('lucid.explainLastCommit', explainLastCommit),
     vscode.commands.registerCommand('lucid.showLastLesson', showLastLesson),
     vscode.commands.registerCommand('lucid.statusClick', () => (lastCard ? showCard(lastCard) : explainLastCommit())),

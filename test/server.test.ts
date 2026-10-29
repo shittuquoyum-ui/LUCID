@@ -164,6 +164,34 @@ describe('HTTP server', () => {
     expect((await fetch(`${base}/nope`)).status).toBe(404);
   });
 
+  it('runs 10 lessons at the same time, not one after another', async () => {
+    let running = 0;
+    let most = 0;
+    const slow = createLucidServer(
+      deps({
+        runLesson: async () => {
+          running += 1;
+          most = Math.max(most, running);
+          await new Promise((r) => setTimeout(r, 300));
+          running -= 1;
+          return report();
+        },
+      }),
+    );
+    await new Promise<void>((resolve) => slow.listen(0, '127.0.0.1', resolve));
+    const url = `http://127.0.0.1:${(slow.address() as AddressInfo).port}/lesson`;
+    const started = Date.now();
+    const replies = await Promise.all(
+      Array.from({ length: 10 }, (_, i) => fetch(url, { method: 'POST', headers: { authorization: 'Bearer good' }, body: JSON.stringify({ diff: `d${i}` }) })),
+    );
+    const took = Date.now() - started;
+    await new Promise<void>((resolve) => slow.close(() => resolve()));
+
+    expect(replies.map((r) => r.status)).toEqual(Array(10).fill(200));
+    expect(most).toBe(10);
+    expect(took).toBeLessThan(1500); // one after another would take 3 s
+  });
+
   it('refuses a body over 2 MB', async () => {
     const big = JSON.stringify({ diff: 'x'.repeat(2_100_000) });
     const r = await fetch(`${base}/lesson`, { method: 'POST', headers: { authorization: 'Bearer good' }, body: big }).catch(() => null);

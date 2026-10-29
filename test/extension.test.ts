@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { plainReason } from '../extension/src/messages';
+import { askServer } from '../extension/src/server';
+import { RLS_DIFF } from './fixtures';
 import { classifyHeadChange, RunQueue } from '../extension/src/trigger';
 import type { LessonCard } from '../src/engine/card';
 import { renderCardHtml } from '../src/ui/cardHtml';
@@ -143,5 +145,51 @@ describe('lesson card in a webview', () => {
     const page = renderCardHtml(card);
     expect(page).not.toContain('Content-Security-Policy');
     expect(page).toContain('prefers-color-scheme');
+  });
+});
+
+describe('askServer', () => {
+  const answer = (status: number, body: object) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+
+  it('sends only the filtered diff, with the GitHub token, and returns the lesson', async () => {
+    let sent: { url: string; auth: string; body: { diff: string; title: string } } | null = null;
+    const fake = (async (url: string, init: RequestInit) => {
+      sent = { url, auth: (init.headers as Record<string, string>).authorization ?? '', body: JSON.parse(String(init.body)) };
+      return new Response(JSON.stringify({ outcome: 'nothing-to-teach', card: null, report: ['outcome: nothing-to-teach'] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const r = await askServer('https://lucid.example/', 'gho_token', RLS_DIFF, 'Add RLS', fake);
+    expect(r).toEqual({ kind: 'done', outcome: 'nothing-to-teach', card: null, report: ['outcome: nothing-to-teach'] });
+    expect(sent!.url).toBe('https://lucid.example/lesson');
+    expect(sent!.auth).toBe('Bearer gho_token');
+    expect(sent!.body.title).toBe('Add RLS');
+    expect(sent!.body.diff).toContain('using (auth.uid() = user_id);');
+    for (const never of ['sk-live', 'SUPABASE_SERVICE_ROLE_KEY', '.env.local', 'package-lock.json', 'logo.png']) expect(sent!.body.diff).not.toContain(never);
+  });
+
+  it('sends nothing when filtering leaves nothing', async () => {
+    const lockOnly = 'diff --git a/package-lock.json b/package-lock.json\n--- a/package-lock.json\n+++ b/package-lock.json\n@@ -1 +1 @@\n-1\n+2\n';
+    const never = (async () => { throw new Error('should not be called'); }) as unknown as typeof fetch;
+    expect(await askServer('https://x', 't', lockOnly, null, never)).toEqual({ kind: 'nothing-to-send' });
+  });
+
+  it('turns every refusal into one plain sentence', async () => {
+    const ask = (status: number, body: object) => askServer('https://x', 't', RLS_DIFF, null, answer(status, body));
+    expect(await ask(401, { error: 'bad-token' })).toEqual({ kind: 'problem', message: 'Lucid needs you to sign in with GitHub again.', action: 'sign-in' });
+    expect(await ask(429, { error: 'user-limit' })).toMatchObject({ message: "You've used today's 20 Lucid lessons. More tomorrow." });
+    expect(await ask(429, { error: 'daily-cap' })).toMatchObject({ message: 'Lucid has reached its limit for everyone today. Try again tomorrow.' });
+    expect(await ask(503, { error: 'paused' })).toMatchObject({ message: 'Lucid is paused right now. Try again later.' });
+    // The server's own key failing is not the builder's problem: no "Set keys".
+    expect(await ask(502, { error: 'model-error', kind: 'AuthenticationError', status: 401 })).toEqual({ kind: 'problem', message: 'Lucid had a problem on its side. Try again later.', action: null });
+    expect(await ask(502, { error: 'model-error', kind: 'RateLimitError', status: 429 })).toMatchObject({ message: 'The model service is busy right now. Try again in a minute.' });
+  });
+
+  it('says plainly when the server cannot be reached', async () => {
+    const offline = (async () => { throw new TypeError('fetch failed'); }) as unknown as typeof fetch;
+    expect(await askServer('https://x', 't', RLS_DIFF, null, offline)).toEqual({
+      kind: 'problem',
+      message: "Lucid couldn't reach its server. Check your internet connection.",
+      action: null,
+    });
   });
 });
