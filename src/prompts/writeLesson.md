@@ -36,6 +36,9 @@ Quote rules (code checks these; a quote that fails is deleted, and if all fail t
 - "role": "shows" when the quote shows how the app works NOW. Only added ('+') or unchanged (' ') lines may be used.
 - "role": "removed" only when the quote shows what this change took away. Only removed ('-') lines may be used.
 - A removed line can never be used to describe how the app works now.
+- At least one quote must include a line this change added ('+') or removed ('-').
+- Lines marked '=' were removed and added back unchanged, so they are not new. They may be quoted as context with role "shows", but never describe them as something this change did.
+- Only describe what really behaves differently now. A rule that is deleted and written again, or copied into a new file, is not new if the app already did the same thing before. Another model checks every claim against the real BEFORE and AFTER.
 - "note": a few plain words on what this line does.
 - Never quote a line marked [hidden by Lucid: ...].
 

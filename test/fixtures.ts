@@ -1,3 +1,31 @@
+/**
+ * The card-2 situation: a read rule is dropped and written again unchanged
+ * (with one truly new safety line). The re-created rule is not new behaviour.
+ */
+export const RECREATED_RULE_DIFF = `diff --git a/supabase/migrations/003_items.sql b/supabase/migrations/003_items.sql
+index 1111111..2222222 100644
+--- a/supabase/migrations/003_items.sql
++++ b/supabase/migrations/003_items.sql
+@@ -1,5 +1,6 @@
+-create policy "anyone can read items"
+-  on items for select
+-  using (true);
+ alter table items enable row level security;
++drop policy if exists "anyone can read items" on items;
++create policy "anyone can read items"
++  on items for select
++    using (true);
+ grant select on items to anon;
+diff --git a/supabase/migrations/004_order.sql b/supabase/migrations/004_order.sql
+index 3333333..4444444 100644
+--- a/supabase/migrations/004_order.sql
++++ b/supabase/migrations/004_order.sql
+@@ -1,2 +1,2 @@
+-grant select on items to anon;
+ alter table items enable row level security;
++grant select on items to anon;
+`;
+
 /** A small, realistic pull request diff: adds row-level security to a notes table. */
 export const RLS_DIFF = `diff --git a/supabase/migrations/002_notes_rls.sql b/supabase/migrations/002_notes_rls.sql
 new file mode 100644

@@ -4,6 +4,7 @@
  * Fake lessons say so in their title; they are never mistaken for the product.
  */
 import { changedCount, shownLine, type DiffFile, type DiffLine } from './diff';
+import type { Review } from './review';
 import type { ConceptPick, Lesson } from './schemas';
 
 const GUESSES: [RegExp, string][] = [
@@ -40,6 +41,9 @@ export const fakePick = (files: DiffFile[]): ConceptPick => {
     evidence: [{ file: spot.file.path, line: shownLine(spot.line), status: 'added', code: spot.line.text }],
   };
 };
+
+/** The fake fact checker always passes; it never read anything. */
+export const fakeReview = (): Review => ({ claimsTrue: true, wrongClaims: [], quizAnsweredByStory: false, quizProblem: '' });
 
 /** Written to pass the plain-English checker, so fake runs exercise the happy path. */
 export const fakeLesson = (pick: ConceptPick): Lesson => {

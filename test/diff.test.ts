@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { parseDiff, shownLine } from '../src/engine/diff';
 import { filterDiff, looksLikeSecret } from '../src/engine/filter';
-import { renderListing } from '../src/engine/listing';
-import { RLS_DIFF } from './fixtures';
+import { LISTING_LEGEND, renderListing, renderVersions } from '../src/engine/listing';
+import { RECREATED_RULE_DIFF, RLS_DIFF } from './fixtures';
 
 describe('parseDiff', () => {
   const files = parseDiff(RLS_DIFF);
@@ -81,6 +81,43 @@ describe('filterDiff', () => {
     expect(one.files).toHaveLength(1);
     // notes.ts changed 7 lines (4 removed, 3 added); the SQL file added 6.
     expect(one.files[0]!.path).toBe('src/lib/notes.ts');
+  });
+});
+
+describe('moved lines', () => {
+  const [items, order] = parseDiff(RECREATED_RULE_DIFF);
+
+  it('marks a removed line and its unchanged twin (ignoring spacing) as moved', () => {
+    const using = items!.lines.filter((l) => l.text.includes('using (true)'));
+    expect(using.map((l) => [l.status, l.oldLine, l.newLine])).toEqual([
+      ['moved', 3, null],
+      ['moved', null, 5],
+    ]);
+    const drop = items!.lines.find((l) => l.text.startsWith('drop policy'))!;
+    expect(drop.status).toBe('added');
+  });
+
+  it('shows moved lines once, at their new spot, as "=" context', () => {
+    const text = renderListing(filterDiff([items!]).files);
+    expect(text).toContain('= 3 | create policy "anyone can read items"');
+    expect(text).toContain('+ 2 | drop policy if exists "anyone can read items" on items;');
+    expect(text.match(/anyone can read items"$/gm)).toHaveLength(1);
+    expect(LISTING_LEGEND).toContain("'=' = moved");
+  });
+
+  it('skips a file whose only changes are moved lines', () => {
+    const result = filterDiff([items!, order!]);
+    expect(result.files.map((f) => f.path)).toEqual(['supabase/migrations/003_items.sql']);
+    expect(result.skipped).toEqual([{ path: 'supabase/migrations/004_order.sql', reason: 'only moved lines' }]);
+  });
+
+  it('shows BEFORE and AFTER versions for the fact check', () => {
+    const text = renderVersions([items!]);
+    const [before, after] = text.split('--- AFTER ---');
+    expect(before).toContain('1 | create policy "anyone can read items"');
+    expect(before).not.toContain('drop policy');
+    expect(after).toContain('2 | drop policy if exists');
+    expect(after).toContain('5 |     using (true);');
   });
 });
 

@@ -11,16 +11,19 @@
  * checker needs them: a claim about how the app works now may only rest on
  * lines that exist now (added or unchanged), and a link to a removed line has
  * to point at the old version of the file.
+ *
+ * A line removed in one spot and added back unchanged in another spot of the
+ * same file is not a change: both copies get the status 'moved'.
  */
 
-export type LineStatus = 'added' | 'removed' | 'unchanged';
+export type LineStatus = 'added' | 'removed' | 'unchanged' | 'moved';
 
 export interface DiffLine {
   status: LineStatus;
   text: string;
-  /** Line number in the old file; null for added lines. */
+  /** Line number in the old file; null for added lines and the new copy of a moved line. */
   oldLine: number | null;
-  /** Line number in the new file; null for removed lines. */
+  /** Line number in the new file; null for removed lines and the old copy of a moved line. */
   newLine: number | null;
   /** Set by the filter when the line looked like a secret. Never quotable. */
   redacted?: boolean;
@@ -144,15 +147,42 @@ export const parseDiff = (text: string): DiffFile[] => {
   }
 
   if (file && file.isDeleted && file.oldPath) file.path = file.oldPath;
-  return files;
+  return files.map(markMoved);
 };
 
-/** The line number a reader sees: new-file number, or old-file number for removed lines. */
-export const shownLine = (l: DiffLine): number => (l.status === 'removed' ? l.oldLine : l.newLine) ?? 0;
+const sameText = (s: string): string => s.trim().replace(/\s+/g, ' ');
 
-/** How many lines a file actually changed (added + removed). */
-export const changedCount = (f: DiffFile): number =>
-  f.lines.filter((l) => l.status !== 'unchanged').length;
+/**
+ * Pair removed and added lines of one file whose text is the same once
+ * whitespace is ignored, in order, and mark both copies 'moved'. A rule that
+ * is deleted and written again unchanged does not change what the app does.
+ */
+export const markMoved = (file: DiffFile): DiffFile => {
+  const lines = file.lines.map((l) => ({ ...l }));
+  const removed = new Map<string, DiffLine[]>();
+  for (const l of lines) {
+    if (l.status !== 'removed') continue;
+    const key = sameText(l.text);
+    removed.set(key, [...(removed.get(key) ?? []), l]);
+  }
+  for (const l of lines) {
+    if (l.status !== 'added') continue;
+    const twin = removed.get(sameText(l.text))?.shift();
+    if (!twin) continue;
+    twin.status = 'moved';
+    l.status = 'moved';
+  }
+  return { ...file, lines };
+};
+
+/** The line number a reader sees: new-file number, or old-file number for lines only in the old file. */
+export const shownLine = (l: DiffLine): number => l.newLine ?? l.oldLine ?? 0;
+
+/** True for lines this change really added or removed (not unchanged, not moved). */
+export const isChange = (l: DiffLine): boolean => l.status === 'added' || l.status === 'removed';
+
+/** How many lines a file actually changed (added + removed, not moved). */
+export const changedCount = (f: DiffFile): number => f.lines.filter(isChange).length;
 
 // ---------------------------------------------------------------------------
 // Fetching from GitHub

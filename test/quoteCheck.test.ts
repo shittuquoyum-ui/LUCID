@@ -4,7 +4,7 @@ import { filterDiff } from '../src/engine/filter';
 import { checkEvidence, checkQuotes, locate } from '../src/engine/quoteCheck';
 import { gradeReply, readAnswer } from '../src/engine/quickCheck';
 import type { Quote } from '../src/engine/schemas';
-import { RLS_DIFF } from './fixtures';
+import { RECREATED_RULE_DIFF, RLS_DIFF } from './fixtures';
 
 const { files } = filterDiff(parseDiff(RLS_DIFF));
 const source: DiffSource = { owner: 'me', repo: 'notes', headSha: 'head123', baseSha: 'base456' };
@@ -104,7 +104,7 @@ describe('checkQuotes', () => {
 
 describe('checkEvidence', () => {
   it('uses the evidence status to pick the rule', () => {
-    const failed = checkEvidence(
+    const { failed } = checkEvidence(
       [
         { file: 'src/lib/notes.ts', line: 4, status: 'removed', code: "// TODO: only show the signed-in user's notes" },
         { file: 'src/lib/notes.ts', line: 4, status: 'added', code: "// TODO: only show the signed-in user's notes" },
@@ -112,6 +112,43 @@ describe('checkEvidence', () => {
       files,
     );
     expect(failed).toHaveLength(1);
+  });
+});
+
+describe('moved lines and real changes', () => {
+  const moved = filterDiff(parseDiff(RECREATED_RULE_DIFF)).files;
+  const items = 'supabase/migrations/003_items.sql';
+
+  it('gives no new-behaviour evidence when a rule is removed and re-added unchanged', () => {
+    const evidence = checkEvidence(
+      [{ file: items, line: 3, status: 'added', code: 'create policy "anyone can read items"\non items for select\nusing (true);' }],
+      moved,
+    );
+    expect(evidence).toEqual({ failed: [], showsChange: false });
+
+    const { verified } = checkQuotes([quote({ file: items, line: 5, code: 'using (true);' })], moved, null);
+    expect(verified[0]!.changes).toBe(false);
+  });
+
+  it('never treats a moved line as removed', () => {
+    const r = locate(moved, items, 'using (true);', 3, 'removed');
+    expect(r).toEqual({ ok: false, reason: "those lines were only moved ('='), not removed" });
+  });
+
+  it('counts the truly new line in the same file as a change', () => {
+    const r = checkEvidence([{ file: items, line: 2, status: 'added', code: 'drop policy if exists "anyone can read items" on items;' }], moved);
+    expect(r.showsChange).toBe(true);
+  });
+
+  it('still accepts a real one-line change', () => {
+    expect(checkEvidence([{ file: 'supabase/migrations/002_notes_rls.sql', line: 5, status: 'added', code: 'using (auth.uid() = user_id);' }], files))
+      .toEqual({ failed: [], showsChange: true });
+    expect(checkQuotes([quote({})], files, null).verified[0]!.changes).toBe(true);
+  });
+
+  it('marks a quote of unchanged context as no change', () => {
+    const { verified } = checkQuotes([quote({ file: 'src/lib/notes.ts', line: 6, code: 'return data;' })], files, null);
+    expect(verified[0]!.changes).toBe(false);
   });
 });
 

@@ -18,6 +18,8 @@ Evidence rules (they are checked by code, and wrong evidence is thrown away)
 - Give 1 to 3 pieces of evidence: the exact lines that show the concept.
 - "code" must be copied exactly from the diff, one or more consecutive lines, without the "+ 12 |" prefix.
 - "line" is the number shown next to the first quoted line. "status" is that line's status: "added" ('+'), "unchanged" (' ') or "removed" ('-').
+- At least one piece of evidence must include a line this change added ('+') or removed ('-'). Unchanged (' ') lines can only add context.
+- Lines marked '=' were removed and added back unchanged. They are not a change: never use them as the evidence, and never teach them as new behaviour. If a change only moves or re-creates things that already existed, set "teach" to false.
 - Never quote a line marked [hidden by Lucid: ...].
 
 Answer with JSON only, no other text, in exactly this shape:

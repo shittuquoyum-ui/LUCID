@@ -66,6 +66,11 @@ export const reportLines = (report: LucidReport): string[] => {
     const n = report.plain.problems.length;
     lines.push(`plain English: ${report.plain.passed ? 'passed' : `failed (${n} problem${n === 1 ? '' : 's'})`}`);
   }
+  if (report.review) {
+    const r = report.review;
+    const why = [r.claimsTrue ? null : 'false claims', r.quizOk ? null : 'quiz answered by the story'].filter((x) => x !== null);
+    lines.push(`fact check: ${r.passed ? 'passed' : `failed (${why.join(', ') || 'no verdict'})`}`);
+  }
   lines.push(timeLine(report.timing));
   lines.push(`outcome: ${report.outcome}`);
   return lines;
@@ -73,8 +78,13 @@ export const reportLines = (report: LucidReport): string[] => {
 
 const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)}s`;
 
-/** e.g. "time: pick 8.2s, write 21.5s, total 30.1s"; steps that did not run are left out. */
+/** e.g. "time: pick 8.2s, write 21.5s, review 6.0s, total 36.1s"; steps that did not run are left out. */
 export const timeLine = (t: LucidReport['timing']): string => {
-  const parts = [t.pickMs === null ? null : `pick ${seconds(t.pickMs)}`, t.writeMs === null ? null : `write ${seconds(t.writeMs)}`, `total ${seconds(t.totalMs)}`];
+  const parts = [
+    t.pickMs === null ? null : `pick ${seconds(t.pickMs)}`,
+    t.writeMs === null ? null : `write ${seconds(t.writeMs)}`,
+    t.reviewMs === null ? null : `review ${seconds(t.reviewMs)}`,
+    `total ${seconds(t.totalMs)}`,
+  ];
   return `time: ${parts.filter((p) => p !== null).join(', ')}`;
 };

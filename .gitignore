@@ -7,6 +7,9 @@
 lesson.md
 samples/
 
+# Editor settings
+.vscode/
+
 node_modules/
 dist/
 coverage/

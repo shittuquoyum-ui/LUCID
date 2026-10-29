@@ -9,22 +9,28 @@
  * The lesson is also run through the plain-English checker. Its problems join
  * the same single retry, but they never cost the lesson: a lesson whose quotes
  * are true and whose wording is still too technical is kept and marked.
+ *
+ * Once quotes and wording pass, a second model fact-checks the lesson against
+ * the real BEFORE/AFTER difference (see review.ts). False claims join the same
+ * retry; if they are still false after it, there is no lesson. A quiz the
+ * story already answers is kept and marked, like plain-English failures.
  */
 import { readFileSync } from 'node:fs';
 import { conceptById, conceptListForPrompt } from '../concepts';
-import type { DiffFile, DiffSource } from './diff';
+import { isChange, type DiffFile, type DiffSource } from './diff';
 import { fakeLesson, fakePick } from './fake';
 import { parseWith } from './json';
 import { LISTING_LEGEND, renderListing } from './listing';
 import { callModel, type Provider } from './model';
 import { checkPlainEnglish, type PlainCheck } from './plainCheck';
-import { checkEvidence, checkLesson, type CheckedLesson, type LessonCheck } from './quoteCheck';
+import { checkEvidence, checkLesson, NO_CHANGE_QUOTED, type CheckedLesson, type LessonCheck } from './quoteCheck';
+import { reviewLesson, type ReviewCheck } from './review';
 import { ConceptPickSchema, LessonSchema, type ConceptPick } from './schemas';
 
 const prompt = (name: string): string => readFileSync(new URL(`../prompts/${name}.md`, import.meta.url), 'utf8');
 
 export interface Attempt {
-  step: 'pick' | 'write';
+  step: 'pick' | 'write' | 'review';
   provider: Provider;
   problems: string[];
 }
@@ -65,13 +71,15 @@ export const pickConcept = async (files: DiffFile[], title: string | null, provi
     } else if (parsed.value.evidence.length === 0) {
       problems = ['"teach" is true but there is no evidence: quote the lines that show the concept.'];
     } else {
-      const failed = checkEvidence(parsed.value.evidence, files);
-      if (failed.length < parsed.value.evidence.length) {
+      const { failed, showsChange } = checkEvidence(parsed.value.evidence, files);
+      if (failed.length < parsed.value.evidence.length && showsChange) {
         attempts.push({ step: 'pick', provider, problems: failed.map((f) => `evidence ${f.item.file}:${f.item.line} dropped (${f.reason})`) });
         const kept = parsed.value.evidence.filter((e) => !failed.some((f) => f.item === e));
         return { pick: { ...parsed.value, evidence: kept }, attempts };
       }
       problems = failed.map((f) => `evidence in ${f.item.file} at line ${f.item.line}: ${f.reason}`);
+      // True lines, but none of them changed: there is no new behaviour to teach from them.
+      if (failed.length < parsed.value.evidence.length) problems.push(`evidence: ${NO_CHANGE_QUOTED}, or set "teach" to false`);
     }
     attempts.push({ step: 'pick', provider, problems });
   }
@@ -85,7 +93,11 @@ export interface LessonResult {
   check: LessonCheck | null;
   /** The plain-English result for the returned lesson; null when there is no lesson. */
   plain: PlainCheck | null;
+  /** The last fact check; null when no lesson got that far. */
+  review: ReviewCheck | null;
   attempts: Attempt[];
+  /** Milliseconds spent in fact checks, so the report can show them apart from writing. */
+  reviewMs: number;
 }
 
 export const writeLesson = async (
@@ -94,6 +106,8 @@ export const writeLesson = async (
   pick: ConceptPick,
   source: DiffSource | null,
   provider: Provider,
+  /** Who fact-checks the lesson; a different model from the writer is best. */
+  reviewProvider: Provider = provider,
 ): Promise<LessonResult> => {
   const system = prompt('writeLesson');
   const concept = conceptById(pick.concept);
@@ -106,10 +120,29 @@ export const writeLesson = async (
     diffBlock(files, title),
   ].join('\n');
 
-  const changedLines = files.flatMap((f) => f.lines.filter((l) => l.status !== 'unchanged' && !l.redacted).map((l) => l.text));
+  const changedLines = files.flatMap((f) => f.lines.filter((l) => isChange(l) && !l.redacted).map((l) => l.text));
   const attempts: Attempt[] = [];
   let problems: string[] = [];
   let lastCheck: LessonCheck | null = null;
+  let lastReview: ReviewCheck | null = null;
+  let reviewMs = 0;
+
+  const factCheck = async (lesson: CheckedLesson): Promise<ReviewCheck> => {
+    const started = performance.now();
+    const result = await reviewLesson(files, title, lesson, reviewProvider);
+    reviewMs += performance.now() - started;
+    attempts.push(...result.attempts);
+    lastReview = result.review;
+    return result.review;
+  };
+  const done = (lesson: CheckedLesson | null, check: LessonCheck | null, plain: PlainCheck | null): LessonResult => ({
+    lesson,
+    check,
+    plain: lesson ? plain : null,
+    review: lastReview,
+    attempts,
+    reviewMs: Math.round(reviewMs),
+  });
 
   for (let round = 0; round < 2; round += 1) {
     const lastRound = round === 1;
@@ -128,12 +161,23 @@ export const writeLesson = async (
     lastCheck = check;
     const lesson: CheckedLesson = { ...parsed.value, quotes: check.verified };
     const plain = checkPlainEnglish(lesson, changedLines);
-    const notes = [...check.failed.map((f) => `quote in ${f.item.file} at line ${f.item.line}: ${f.reason}`), ...plain.problems];
+    const quoteNotes = check.failed.map((f) => `quote in ${f.item.file} at line ${f.item.line}: ${f.reason}`);
+    const quotesOk = check.verified.some((q) => q.changes);
+    if (check.verified.length === 0 && quoteNotes.length === 0) quoteNotes.push('no quote could be verified against the diff');
+    if (check.verified.length > 0 && !quotesOk) quoteNotes.push(NO_CHANGE_QUOTED);
+    const notes = [...quoteNotes, ...plain.problems];
     attempts.push({ step: 'write', provider, problems: notes });
-    if (check.verified.length > 0 && (plain.passed || lastRound)) {
-      return { lesson, check, plain, attempts };
+
+    // Fact-check only a lesson that could be shown: true quotes, and plain
+    // wording (or no retry left to fix the wording).
+    if (!quotesOk || (!plain.passed && !lastRound)) {
+      problems = notes;
+      continue;
     }
-    problems = notes.length ? notes : ['no quote could be verified against the diff'];
+    const review = await factCheck(lesson);
+    if (review.passed) return done(lesson, check, plain);
+    if (lastRound) return review.claimsTrue ? done(lesson, check, plain) : done(null, check, null);
+    problems = [...notes, ...review.problems];
   }
-  return { lesson: null, check: lastCheck, plain: null, attempts };
+  return done(null, lastCheck, null);
 };

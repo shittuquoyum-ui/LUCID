@@ -29,14 +29,16 @@ export interface LessonCard {
     quotesVerified: number;
     quotesTotal: number;
     plainEnglish: 'passed' | 'failed';
+    /** The fact check. Claims are always true on a card; 'failed' means the story answers the quiz. */
+    review: 'passed' | 'failed';
     /** How long each step took, in milliseconds. */
-    timeMs: { pick: number; write: number; total: number };
+    timeMs: { pick: number; write: number; review: number; total: number };
   };
 }
 
 /** The card for a report, or null when the report has no lesson. */
 export const toCard = (report: LucidReport): LessonCard | null => {
-  const { lesson, pick, check, plain, timing } = report;
+  const { lesson, pick, check, plain, review, timing } = report;
   if (!lesson || !pick) return null;
   const [key, extra] = lesson.quotes;
   if (!key) return null;
@@ -58,8 +60,9 @@ export const toCard = (report: LucidReport): LessonCard | null => {
       quotesVerified: verified,
       quotesTotal: verified + (check?.failed.length ?? 0),
       plainEnglish: plain?.passed ? 'passed' : 'failed',
-      // A lesson means both steps ran, so both times are set.
-      timeMs: { pick: timing.pickMs ?? 0, write: timing.writeMs ?? 0, total: timing.totalMs },
+      review: review?.passed ? 'passed' : 'failed',
+      // A lesson means every step ran, so every time is set.
+      timeMs: { pick: timing.pickMs ?? 0, write: timing.writeMs ?? 0, review: timing.reviewMs ?? 0, total: timing.totalMs },
     },
   };
 };

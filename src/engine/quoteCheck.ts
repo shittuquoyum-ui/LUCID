@@ -4,14 +4,18 @@
  * Every line a model quotes must really be in the diff, in the same order,
  * with a status that fits what the quote is used for:
  *
- *   role 'shows'   -> how the app works NOW   -> only added or unchanged lines
+ *   role 'shows'   -> how the app works NOW   -> only added, unchanged or moved lines
  *   role 'removed' -> what this change removed -> only removed lines
  *
  * A removed line can never prove how the app works today. A line hidden as a
  * possible secret can never be quoted. A quote that fails is dropped before
  * the builder sees it. Plain code, no model call.
+ *
+ * Unchanged and moved lines are true but prove no change. Each match records
+ * whether it includes a line the change really added or removed, and a lesson
+ * (or a concept pick) needs at least one quote that does.
  */
-import { shownLine, type DiffFile, type DiffLine, type DiffSource, type LineStatus } from './diff';
+import { isChange, shownLine, type DiffFile, type DiffLine, type DiffSource, type LineStatus } from './diff';
 import type { Evidence, Lesson, Quote } from './schemas';
 
 export type Role = 'shows' | 'removed';
@@ -24,6 +28,8 @@ export interface Match {
   end: number;
   /** True when the model's line number was off and we corrected it from the match. */
   lineCorrected: boolean;
+  /** True when at least one matched line was really added or removed (not unchanged, not moved). */
+  changes: boolean;
 }
 
 export type CheckOutcome = { ok: true; match: Match } | { ok: false; reason: string };
@@ -51,6 +57,9 @@ const lineMatches = (quoted: string, line: DiffLine): boolean => {
 const allowed = (role: Role, status: LineStatus): boolean =>
   role === 'shows' ? status !== 'removed' : status === 'removed';
 
+/** Does this line exist in the version of the file the role reads? */
+const inVersion = (role: Role, l: DiffLine): boolean => (role === 'shows' ? l.newLine !== null : l.oldLine !== null);
+
 const findFile = (files: DiffFile[], name: string): DiffFile | string => {
   const exact = files.find((f) => f.path === name || f.oldPath === name);
   if (exact) return exact;
@@ -71,21 +80,23 @@ export const locate = (files: DiffFile[], file: string, code: string, claimedLin
   const wanted = quoteLines(code);
   if (wanted.length === 0) return { ok: false, reason: 'the quote is empty' };
 
-  // The version of the file this role reads: new file (no removed lines) or old file (no added lines).
-  const view = target.lines.filter((l) => (role === 'shows' ? l.status !== 'removed' : l.status !== 'added'));
+  // The version of the file this role reads: the new file or the old file.
+  const view = target.lines.filter((l) => inVersion(role, l));
 
   const matches: Match[] = [];
   let wrongStatus = false;
+  let onlyMoved = false;
   for (let i = 0; i + wanted.length <= view.length; i += 1) {
     const slice = view.slice(i, i + wanted.length);
     if (!slice.every((line, k) => lineMatches(wanted[k]!, line))) continue;
     if (!slice.every((line) => allowed(role, line.status))) {
       wrongStatus = true;
+      onlyMoved ||= slice.some((line) => line.status === 'moved');
       continue;
     }
     const start = shownLine(slice[0]!);
     const end = shownLine(slice[slice.length - 1]!);
-    matches.push({ file: target, lines: slice, start, end, lineCorrected: start !== claimedLine });
+    matches.push({ file: target, lines: slice, start, end, lineCorrected: start !== claimedLine, changes: slice.some(isChange) });
   }
 
   if (matches.length === 0) {
@@ -107,7 +118,9 @@ export const locate = (files: DiffFile[], file: string, code: string, claimedLin
         reason:
           role === 'shows'
             ? 'the quote uses removed lines to describe how the app works now'
-            : 'a quote about removed code must only use removed lines',
+            : onlyMoved
+              ? "those lines were only moved ('='), not removed"
+              : 'a quote about removed code must only use removed lines',
       };
     }
     // Was it quoting a hidden line?
@@ -144,6 +157,8 @@ export interface VerifiedQuote extends Quote {
   /** Path as it appears in the diff (the model may have shortened it). */
   file: string;
   link: string | null;
+  /** True when the quote includes a line the change really added or removed. */
+  changes: boolean;
 }
 
 /** A lesson after the quote checker: only verified quotes remain. */
@@ -177,17 +192,32 @@ export const checkQuotes = (quotes: Quote[], files: DiffFile[], source: DiffSour
       line: match.start,
       endLine: match.end,
       link: lineLink(source, match, q.role),
+      changes: match.changes,
     });
   }
   return { verified, failed };
 };
 
+export const NO_CHANGE_QUOTED =
+  "no quote includes a line this change added ('+') or removed ('-'); unchanged (' ') and moved ('=') lines prove nothing new. Quote at least one '+' or '-' line";
+
 export const checkLesson = (lesson: Lesson, files: DiffFile[], source: DiffSource | null): LessonCheck =>
   checkQuotes(lesson.quotes, files, source);
 
+export interface EvidenceCheck {
+  failed: FailedItem<Evidence>[];
+  /** True when some verified evidence includes a line the change really added or removed. */
+  showsChange: boolean;
+}
+
 /** Step 1's evidence uses the same rules; its status decides the role. */
-export const checkEvidence = (evidence: Evidence[], files: DiffFile[]): FailedItem<Evidence>[] =>
-  evidence.flatMap((e) => {
+export const checkEvidence = (evidence: Evidence[], files: DiffFile[]): EvidenceCheck => {
+  const failed: FailedItem<Evidence>[] = [];
+  let showsChange = false;
+  for (const e of evidence) {
     const outcome = locate(files, e.file, e.code, e.line, e.status === 'removed' ? 'removed' : 'shows');
-    return outcome.ok ? [] : [{ item: e, reason: outcome.reason }];
-  });
+    if (!outcome.ok) failed.push({ item: e, reason: outcome.reason });
+    else if (outcome.match.changes) showsChange = true;
+  }
+  return { failed, showsChange };
+};

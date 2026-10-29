@@ -91,7 +91,10 @@ export const filterDiff = (files: DiffFile[], options: FilterOptions = {}): Filt
     .sort((a, b) => changedCount(b) - changedCount(a));
 
   for (const f of ranked.slice(maxFiles)) skipped.push({ path: f.path, reason: 'smaller change than the files sent' });
-  for (const f of kept.filter((f) => changedCount(f) === 0)) skipped.push({ path: f.path, reason: 'no added or removed lines' });
+  for (const f of kept.filter((f) => changedCount(f) === 0)) {
+    const reason = f.lines.some((l) => l.status === 'moved') ? 'only moved lines' : 'no added or removed lines';
+    skipped.push({ path: f.path, reason });
+  }
 
   const chosen = ranked.slice(0, maxFiles).map((f) =>
     f.lines.length > maxLinesPerFile ? { ...f, lines: f.lines.slice(0, maxLinesPerFile) } : f,
