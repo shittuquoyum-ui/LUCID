@@ -175,6 +175,14 @@ describe('writeLesson', () => {
     expect(r.attempts[1]).toMatchObject({ step: 'review', problems: [expect.stringMatching(/^fact check found a false claim: The title says/)] });
   });
 
+  it('writes the first draft at low effort and the retry at medium', async () => {
+    vi.mocked(callModel).mockClear();
+    answers.push(JSON.stringify(lesson([realQuote])), falseClaim, JSON.stringify(lesson([realQuote])), verdict());
+    await writeLesson(files, null, pick, null, 'meta', 'baseten');
+    const writes = vi.mocked(callModel).mock.calls.map((c) => c[1]).filter((c) => c.system.includes('You write lesson cards'));
+    expect(writes.map((c) => c.effort)).toEqual(['low', 'medium']);
+  });
+
   it('returns no lesson when the claims are still false after the retry', async () => {
     answers.push(JSON.stringify(lesson([realQuote])), falseClaim, JSON.stringify(lesson([realQuote])), falseClaim);
     const r = await writeLesson(files, null, pick, null, 'meta', 'baseten');

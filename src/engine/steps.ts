@@ -20,7 +20,7 @@ import { isChange, type DiffFile, type DiffSource } from './diff';
 import { fakeLesson, fakePick } from './fake';
 import { parseWith } from './json';
 import { LISTING_LEGEND, renderListing } from './listing';
-import { callModel, emptyUsage, type Provider, type Usage } from './model';
+import { callModel, emptyUsage, type Effort, type Provider, type Usage } from './model';
 import { checkPlainEnglish, type PlainCheck } from './plainCheck';
 import { prompt } from './prompts';
 import { checkEvidence, checkLesson, NO_CHANGE_QUOTED, type CheckedLesson, type LessonCheck } from './quoteCheck';
@@ -33,6 +33,24 @@ export interface Attempt {
   provider: Provider;
   problems: string[];
 }
+
+/**
+ * Reasoning effort for the writer: the first draft, then the retry.
+ * LUCID_WRITE_EFFORT and LUCID_WRITE_RETRY_EFFORT override them.
+ * On five known commits, run twice each (whole lesson, average): medium for
+ * both took 50s; low for both 32s but gave 2 of 10 quizzes the story answers;
+ * low then medium took 35s with 1 of 10. Every claim passed the fact check in
+ * all three. The retry is the hard round (fixing a false claim), so it gets
+ * the extra thought.
+ */
+export const WRITE_EFFORT: { first: Effort; retry: Effort } = { first: 'low', retry: 'medium' };
+
+const effortFrom = (name: string, fallback: Effort): Effort => {
+  const v = process.env[name]?.trim();
+  return v === 'minimal' || v === 'low' || v === 'medium' || v === 'high' ? v : fallback;
+};
+const writeEffort = (retry: boolean): Effort =>
+  retry ? effortFrom('LUCID_WRITE_RETRY_EFFORT', WRITE_EFFORT.retry) : effortFrom('LUCID_WRITE_EFFORT', WRITE_EFFORT.first);
 
 const retryNote = (problems: string[]): string =>
   `\n\nYOUR PREVIOUS ANSWER WAS REJECTED. Fix these problems and return the complete JSON again:\n${problems.map((p) => `- ${p}`).join('\n')}`;
@@ -156,7 +174,7 @@ export const writeLesson = async (
     onStep?.('writing');
     const text = await callModel(
       provider,
-      { system, user: base + (problems.length ? retryNote(problems) : ''), effort: 'medium', maxTokens: 12000, usage: usage.write },
+      { system, user: base + (problems.length ? retryNote(problems) : ''), effort: writeEffort(round > 0), maxTokens: 12000, usage: usage.write },
       () => JSON.stringify(fakeLesson(pick)),
     );
     const parsed = parseWith(LessonSchema, text);
