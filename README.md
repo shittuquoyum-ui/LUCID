@@ -4,9 +4,18 @@
 
 Lucid is for people who build apps with AI tools ("vibe coders") and have never read code. When you commit, a lesson card pops up beside your code. It explains, in plain words, what that change does in your app, shows you the one line that does it, and ends with a quick A/B/C check you can click.
 
-Lucid is becoming a VS Code extension (it also works in Cursor and Windsurf). This repository holds the engine that writes and checks the cards. The extension comes next.
+Lucid is a VS Code extension (built for Cursor too). This repository holds the extension, the engine that writes and checks the cards, and the small server that runs it.
 
 Built for the Meta Global AI Developer Hackathon (Oct 26 – Nov 4, 2026). Everything in this repository was written during the event.
+
+## Install
+
+1. Download **`lucid.vsix`** from the [latest release](https://github.com/shittuquoyum-ui/LUCID/releases/latest).
+2. In VS Code: open the Extensions view, click the **`…`** menu, choose **Install from VSIX…** and pick the file. (Or run `code --install-extension lucid.vsix`.)
+3. Open the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and run **Lucid: Sign in with GitHub**.
+4. Open any project that uses git, change something, commit, and keep working. In about 30–70 seconds a notification appears: **Lucid: …** → **Show me**.
+
+No API keys needed: lessons are written on Lucid's server, 20 per GitHub user per day. Only a filtered copy of your change is sent (see [what Lucid sends](#what-lucid-sends-and-what-it-keeps)). In Cursor, if GitHub sign-in isn't available, run **Lucid: Set API keys** to use your own Meta and Baseten keys.
 
 ## How it works
 
@@ -73,7 +82,7 @@ npm run -s preview -- https://github.com/owner/repo/commit/abc1234 --pick basete
 
 The lesson (or card) prints to stdout; a report of what was sent, skipped and checked prints to stderr. Use `-s` so npm's own banner stays out of the output.
 
-## Run the extension
+## Run the extension from source
 
 Works in VS Code and Cursor.
 
