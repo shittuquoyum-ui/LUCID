@@ -30,11 +30,18 @@ const GOLD: Lesson = {
   },
 };
 
-const problemsFor = (change: Partial<Lesson>): string[] => checkPlainEnglish({ ...GOLD, ...change }).problems;
+/** The changed lines of commit fe424de's diff that matter here. */
+const CHANGED = [
+  "        return `${error.field}: ${error.message || 'Validation failed'}`;",
+  "    getErrorMessage(new ValidationError({ field: 'email', message: '' }))",
+  "  ).toBe('email: Validation failed');",
+];
+
+const problemsFor = (change: Partial<Lesson>, changed = CHANGED): string[] => checkPlainEnglish({ ...GOLD, ...change }, changed).problems;
 
 describe('checkPlainEnglish', () => {
   it('passes the gold example', () => {
-    expect(checkPlainEnglish(GOLD)).toEqual({ passed: true, problems: [] });
+    expect(checkPlainEnglish(GOLD, CHANGED)).toEqual({ passed: true, problems: [] });
   });
 
   it('flags developer words, whole word and any case, naming the field', () => {
@@ -52,9 +59,23 @@ describe('checkPlainEnglish', () => {
     expect(problemsFor({ plainWords: 'the `function` part runs the `getErrorMessage` step, then shows the note.' })).toEqual([]);
   });
 
-  it('allows words the app itself shows on screen', () => {
-    // 'Validation failed' is quoted text in the code, so it is what users see.
-    expect(problemsFor({ options: { ...GOLD.options, A: 'Validation failed' } })).not.toContainEqual(expect.stringMatching(/validation/i));
+  it('allows words the app itself shows on screen, when the change contains them', () => {
+    // 'Validation failed' is quoted text in the changed lines, so it is what users see.
+    expect(problemsFor({ options: { ...GOLD.options, C: 'Validation failed' } })).toEqual([]);
+    expect(problemsFor({ question: 'The note says "validation failed". What went wrong?' })).toEqual([]);
+  });
+
+  it('still flags jargon in quotes when the change does not contain that text', () => {
+    expect(problemsFor({ plainWords: "show the 'object' that came back, or a backup note." })).toEqual([
+      'plainWords uses "object", say it in everyday words',
+    ]);
+    expect(problemsFor({ question: 'The note says "object missing". What do they see?' })).toEqual([
+      'question uses "object", say it in everyday words',
+    ]);
+  });
+
+  it('gives no on-screen exemption without the changed lines', () => {
+    expect(problemsFor({}, [])).toContain('option B uses "Validation", say it in everyday words');
   });
 
   it('flags camelCase and PascalCase code names outside backticks', () => {

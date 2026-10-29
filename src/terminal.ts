@@ -64,6 +64,15 @@ export const reportLines = (report: LucidReport): string[] => {
     const n = report.plain.problems.length;
     lines.push(`plain English: ${report.plain.passed ? 'passed' : `failed (${n} problem${n === 1 ? '' : 's'})`}`);
   }
+  lines.push(timeLine(report.timing));
   lines.push(`outcome: ${report.outcome}`);
   return lines;
+};
+
+const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)}s`;
+
+/** e.g. "time: pick 8.2s, write 21.5s, total 30.1s"; steps that did not run are left out. */
+export const timeLine = (t: LucidReport['timing']): string => {
+  const parts = [t.pickMs === null ? null : `pick ${seconds(t.pickMs)}`, t.writeMs === null ? null : `write ${seconds(t.writeMs)}`, `total ${seconds(t.totalMs)}`];
+  return `time: ${parts.filter((p) => p !== null).join(', ')}`;
 };

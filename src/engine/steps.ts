@@ -106,6 +106,7 @@ export const writeLesson = async (
     diffBlock(files, title),
   ].join('\n');
 
+  const changedLines = files.flatMap((f) => f.lines.filter((l) => l.status !== 'unchanged' && !l.redacted).map((l) => l.text));
   const attempts: Attempt[] = [];
   let problems: string[] = [];
   let lastCheck: LessonCheck | null = null;
@@ -126,7 +127,7 @@ export const writeLesson = async (
     const check = checkLesson(parsed.value, files, source);
     lastCheck = check;
     const lesson: CheckedLesson = { ...parsed.value, quotes: check.verified };
-    const plain = checkPlainEnglish(lesson);
+    const plain = checkPlainEnglish(lesson, changedLines);
     const notes = [...check.failed.map((f) => `quote in ${f.item.file} at line ${f.item.line}: ${f.reason}`), ...plain.problems];
     attempts.push({ step: 'write', provider, problems: notes });
     if (check.verified.length > 0 && (plain.passed || lastRound)) {

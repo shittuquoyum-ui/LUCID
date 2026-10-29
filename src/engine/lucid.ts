@@ -32,9 +32,14 @@ export interface LucidReport {
   redactedLines: number;
   attempts: Attempt[];
   models: { pick: string; write: string };
+  /** Milliseconds per step; null for a step that did not run. */
+  timing: { pickMs: number | null; writeMs: number | null; totalMs: number };
 }
 
+const since = (start: number): number => Math.round(performance.now() - start);
+
 export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
+  const started = performance.now();
   const pickProvider = input.providers?.pick ?? providerFor('pick');
   const writeProvider = input.providers?.write ?? providerFor('write');
   const filtered = filterDiff(parseDiff(input.diffText));
@@ -51,27 +56,36 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
     redactedLines: filtered.redacted,
     attempts: [],
     models: { pick: modelName(pickProvider), write: modelName(writeProvider) },
+    timing: { pickMs: null, writeMs: null, totalMs: 0 },
   };
-  if (filtered.files.length === 0) return report;
+  const finish = (changes: Partial<LucidReport>): LucidReport => ({
+    ...report,
+    ...changes,
+    timing: { ...report.timing, totalMs: since(started) },
+  });
+  if (filtered.files.length === 0) return finish({});
 
+  const pickStarted = performance.now();
   const picked = await pickConcept(filtered.files, input.title, pickProvider);
+  report.timing.pickMs = since(pickStarted);
   report.attempts.push(...picked.attempts);
   report.pick = picked.pick;
-  if (!picked.pick) return { ...report, outcome: 'pick-failed' };
-  if (!picked.pick.teach) return { ...report, outcome: 'nothing-to-teach' };
+  if (!picked.pick) return finish({ outcome: 'pick-failed' });
+  if (!picked.pick.teach) return finish({ outcome: 'nothing-to-teach' });
 
+  const writeStarted = performance.now();
   const written = await writeLesson(filtered.files, input.title, picked.pick, input.source, writeProvider);
+  report.timing.writeMs = since(writeStarted);
   report.attempts.push(...written.attempts);
   report.check = written.check;
   report.plain = written.plain;
-  if (!written.lesson) return { ...report, outcome: 'lesson-failed' };
+  if (!written.lesson) return finish({ outcome: 'lesson-failed' });
 
   const { lesson } = written;
   const lessonId = `${input.source?.headSha.slice(0, 12) ?? 'local'}-${picked.pick.concept}`;
-  return {
-    ...report,
+  return finish({
     outcome: 'lesson',
     lesson,
     comment: renderComment(lesson, { concept: picked.pick.concept, lessonId }),
-  };
+  });
 };

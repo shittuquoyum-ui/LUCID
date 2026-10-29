@@ -8,8 +8,10 @@
  *
  * Two kinds of text are exempt:
  *   - anything inside `backticks`, where the lesson shows code on purpose
- *   - words the app itself shows on screen, i.e. text inside quotes in the
- *     quoted code ('Validation failed' is what people see, not jargon)
+ *   - words the app itself shows on screen: quoted text (in the lesson or in
+ *     its quoted code) that also appears, case-insensitively, in the changed
+ *     lines of the diff. 'Validation failed' is what people see, not jargon;
+ *     a quoted 'object' that the change never shows still counts.
  */
 import type { Lesson } from './schemas';
 
@@ -38,17 +40,32 @@ const IDENTIFIER = /\b(?:[a-z]+[A-Z][A-Za-z0-9]*|[A-Z][a-z0-9]+[A-Z][A-Za-z0-9]*
 const NAMING = /\b(?:that['’]?s|that is|this is) called\b/i;
 const PLACEHOLDER = '`…`';
 
-/** Text inside quotes in the quoted code: words the app shows to its users. */
-const appText = (lesson: Lesson): string[] => {
-  const code = lesson.quotes.map((q) => q.code).join('\n');
-  const found = [/'([^'\n]+)'/g, /"([^"\n]+)"/g, /`([^`\n]+)`/g].flatMap((re) => [...code.matchAll(re)].map((m) => m[1]!));
-  return found.filter((t) => t.trim().length >= 4 && /[A-Za-z]/.test(t));
+const CODE_QUOTES = [/'([^'\n]+)'/g, /"([^"\n]+)"/g, /`([^`\n]+)`/g];
+// In prose a single quote is often an apostrophe ("it's"), so only count quotes that open and close at word edges.
+const PROSE_QUOTES = [/(?<![\p{L}\p{N}])['‘]((?:[^'‘’\n]|['’](?=[\p{L}]))+)['’](?![\p{L}\p{N}])/gu, /["“]([^"“”\n]+)["”]/g];
+
+const quotedIn = (text: string, patterns: RegExp[]): string[] => patterns.flatMap((re) => [...text.matchAll(re)].map((m) => m[1]!));
+
+/**
+ * Words the app shows to its users: quoted text from the lesson or its quoted
+ * code, kept only when the change itself contains it.
+ */
+const appText = (lesson: Lesson, changedLines: string[]): string[] => {
+  const changed = changedLines.join('\n').toLowerCase();
+  const prose = [lesson.title, ...lesson.story, lesson.plainWords, lesson.question, ...Object.values(lesson.options), ...Object.values(lesson.feedback)];
+  const candidates = [
+    ...quotedIn(lesson.quotes.map((q) => q.code).join('\n'), CODE_QUOTES),
+    ...prose.flatMap((t) => quotedIn(t, PROSE_QUOTES)),
+  ];
+  return [...new Set(candidates)].filter((t) => t.trim().length >= 4 && /[A-Za-z]/.test(t) && changed.includes(t.toLowerCase()));
 };
+
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The words a reader actually has to understand: no code, no on-screen app text. */
 const readable = (text: string, exempt: string[]): string => {
   let out = text.replace(/`[^`]*`/g, PLACEHOLDER);
-  for (const t of exempt) out = out.split(t).join(PLACEHOLDER);
+  for (const t of exempt) out = out.replace(new RegExp(escapeRegExp(t), 'gi'), PLACEHOLDER);
   return out;
 };
 
@@ -67,9 +84,10 @@ const opening = (sentence: string): string => {
 
 const normalize = (s: string): string => s.toLowerCase().replace(/\s+/g, ' ').trim();
 
-export const checkPlainEnglish = (lesson: Lesson): PlainCheck => {
+/** `changedLines`: the text of the diff's added and removed lines, for the on-screen-text exemption. */
+export const checkPlainEnglish = (lesson: Lesson, changedLines: string[] = []): PlainCheck => {
   const problems: string[] = [];
-  const exempt = appText(lesson);
+  const exempt = appText(lesson, changedLines);
 
   const fields: { label: string; text: string }[] = [
     { label: 'title', text: lesson.title },

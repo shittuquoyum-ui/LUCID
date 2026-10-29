@@ -29,12 +29,14 @@ export interface LessonCard {
     quotesVerified: number;
     quotesTotal: number;
     plainEnglish: 'passed' | 'failed';
+    /** How long each step took, in milliseconds. */
+    timeMs: { pick: number; write: number; total: number };
   };
 }
 
 /** The card for a report, or null when the report has no lesson. */
 export const toCard = (report: LucidReport): LessonCard | null => {
-  const { lesson, pick, check, plain } = report;
+  const { lesson, pick, check, plain, timing } = report;
   if (!lesson || !pick) return null;
   const [key, extra] = lesson.quotes;
   if (!key) return null;
@@ -56,6 +58,8 @@ export const toCard = (report: LucidReport): LessonCard | null => {
       quotesVerified: verified,
       quotesTotal: verified + (check?.failed.length ?? 0),
       plainEnglish: plain?.passed ? 'passed' : 'failed',
+      // A lesson means both steps ran, so both times are set.
+      timeMs: { pick: timing.pickMs ?? 0, write: timing.writeMs ?? 0, total: timing.totalMs },
     },
   };
 };

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { toCard } from '../src/engine/card';
 import type { LucidReport } from '../src/engine/lucid';
 import { renderComment } from '../src/engine/render';
+import { timeLine } from '../src/terminal';
 import { renderCardHtml } from '../src/ui/cardHtml';
 
 const quote = {
@@ -31,6 +32,7 @@ const report = {
   pick: { teach: true, concept: 'error-handling', why: 'x', evidence: [] },
   check: { verified: [quote], failed: [{ item: quote, reason: 'x' }] },
   plain: { passed: false, problems: ['x'] },
+  timing: { pickMs: 8200, writeMs: 21500, totalMs: 30100 },
 } as unknown as LucidReport;
 
 describe('lesson card', () => {
@@ -38,7 +40,17 @@ describe('lesson card', () => {
     const card = toCard(report)!;
     expect(card.keyLine).toEqual({ file: 'src/app.ts', line: 12, endLine: 12, code: quote.code, link: quote.link, plainWords: lesson.plainWords });
     expect(card.extraQuote).toBeUndefined();
-    expect(card.checks).toEqual({ quotesVerified: 1, quotesTotal: 2, plainEnglish: 'failed' });
+    expect(card.checks).toEqual({
+      quotesVerified: 1,
+      quotesTotal: 2,
+      plainEnglish: 'failed',
+      timeMs: { pick: 8200, write: 21500, total: 30100 },
+    });
+  });
+
+  it('shows step times in the report, leaving out steps that did not run', () => {
+    expect(timeLine(report.timing)).toBe('time: pick 8.2s, write 21.5s, total 30.1s');
+    expect(timeLine({ pickMs: 940, writeMs: null, totalMs: 1000 })).toBe('time: pick 0.9s, total 1.0s');
   });
 
   it('has no card without a lesson', () => {
