@@ -12,8 +12,9 @@
  * lines that exist now (added or unchanged), and a link to a removed line has
  * to point at the old version of the file.
  *
- * A line removed in one spot and added back unchanged in another spot of the
- * same file is not a change: both copies get the status 'moved'.
+ * A line removed in one spot and added back unchanged in another spot (of the
+ * same file, or of another file in the change) is not a change: both copies
+ * get the status 'moved'.
  */
 
 export type LineStatus = 'added' | 'removed' | 'unchanged' | 'moved';
@@ -147,7 +148,7 @@ export const parseDiff = (text: string): DiffFile[] => {
   }
 
   if (file && file.isDeleted && file.oldPath) file.path = file.oldPath;
-  return files.map(markMoved);
+  return markMovedAcrossFiles(files.map(markMoved));
 };
 
 const sameText = (s: string): string => s.trim().replace(/\s+/g, ' ');
@@ -173,6 +174,40 @@ export const markMoved = (file: DiffFile): DiffFile => {
     l.status = 'moved';
   }
   return { ...file, lines };
+};
+
+/** Lines shorter than this ("}", ");", "end") are too common to say anything moved between files. */
+export const CROSS_FILE_MIN_CHARS = 12;
+
+/**
+ * After pairing within each file, pair what is left across files: a line
+ * removed from one file and added unchanged to another (a rule moved into a
+ * new migration, a function moved to a new module) is not a change either.
+ * Only lines with at least CROSS_FILE_MIN_CHARS non-whitespace characters.
+ */
+export const markMovedAcrossFiles = (files: DiffFile[]): DiffFile[] => {
+  const out = files.map((f) => ({ ...f, lines: f.lines.map((l) => ({ ...l })) }));
+  const long = (text: string): boolean => text.replace(/\s/g, '').length >= CROSS_FILE_MIN_CHARS;
+  const removed = new Map<string, { file: DiffFile; line: DiffLine }[]>();
+  for (const file of out) {
+    for (const line of file.lines) {
+      if (line.status !== 'removed' || !long(line.text)) continue;
+      const key = sameText(line.text);
+      removed.set(key, [...(removed.get(key) ?? []), { file, line }]);
+    }
+  }
+  for (const file of out) {
+    for (const line of file.lines) {
+      if (line.status !== 'added' || !long(line.text)) continue;
+      const queue = removed.get(sameText(line.text));
+      const i = queue?.findIndex((r) => r.file !== file) ?? -1;
+      if (!queue || i < 0) continue;
+      const [twin] = queue.splice(i, 1);
+      twin!.line.status = 'moved';
+      line.status = 'moved';
+    }
+  }
+  return out;
 };
 
 /** The line number a reader sees: new-file number, or old-file number for lines only in the old file. */

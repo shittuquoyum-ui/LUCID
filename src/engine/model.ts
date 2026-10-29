@@ -17,7 +17,19 @@ export interface ModelCall {
   /** Room for the answer. Reasoning models spend part of it thinking first. */
   maxTokens?: number;
   effort?: Effort;
+  /** Token counts from each response are added here, when given. */
+  usage?: Usage;
 }
+
+/** Token counts for one step, summed over its calls. `reasoning` is part of `output`. */
+export interface Usage {
+  calls: number;
+  input: number;
+  output: number;
+  reasoning: number;
+}
+
+export const emptyUsage = (): Usage => ({ calls: 0, input: 0, output: 0, reasoning: 0 });
 
 interface ProviderConfig {
   baseURL: string;
@@ -83,6 +95,13 @@ export const callModel = async (provider: Provider, call: ModelCall, fake?: () =
     // Both APIs accept reasoning_effort; the SDK's type only lists OpenAI's values.
     ...(call.effort ? ({ reasoning_effort: call.effort } as Record<string, unknown>) : {}),
   });
+  if (call.usage) {
+    // Counted before the content check: an empty answer still cost its tokens.
+    call.usage.calls += 1;
+    call.usage.input += response.usage?.prompt_tokens ?? 0;
+    call.usage.output += response.usage?.completion_tokens ?? 0;
+    call.usage.reasoning += response.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
+  }
   const choice = response.choices[0];
   const content = choice?.message?.content;
   if (!content || !content.trim()) {

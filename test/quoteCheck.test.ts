@@ -4,7 +4,7 @@ import { filterDiff } from '../src/engine/filter';
 import { checkEvidence, checkQuotes, locate } from '../src/engine/quoteCheck';
 import { gradeReply, readAnswer } from '../src/engine/quickCheck';
 import type { Quote } from '../src/engine/schemas';
-import { RECREATED_RULE_DIFF, RLS_DIFF } from './fixtures';
+import { RECREATED_RULE_DIFF, RLS_DIFF, RULE_MOVED_TO_NEW_FILE_DIFF } from './fixtures';
 
 const { files } = filterDiff(parseDiff(RLS_DIFF));
 const source: DiffSource = { owner: 'me', repo: 'notes', headSha: 'head123', baseSha: 'base456' };
@@ -138,6 +138,21 @@ describe('moved lines and real changes', () => {
   it('counts the truly new line in the same file as a change', () => {
     const r = checkEvidence([{ file: items, line: 2, status: 'added', code: 'drop policy if exists "anyone can read items" on items;' }], moved);
     expect(r.showsChange).toBe(true);
+  });
+
+  it('gives no new-behaviour evidence when a rule moves to a new migration file (card 2)', () => {
+    const across = filterDiff(parseDiff(RULE_MOVED_TO_NEW_FILE_DIFF)).files;
+    const fix = 'supabase/migrations/005_fix_policies.sql';
+    const status = (text: string) => across.flatMap((f) => f.lines).filter((l) => l.text.trim() === text).map((l) => l.status).sort();
+
+    expect(status('create policy select_all_policy on public.items for')).toEqual(['moved', 'moved']);
+    expect(status('select using (true);')).toEqual(['moved', 'moved']);
+    expect(status('}')).toEqual(['added', 'removed']); // too short to pair across files
+    expect(status('drop policy if exists select_all_policy on public.items;')).toEqual(['added']);
+
+    const rule = checkEvidence([{ file: fix, line: 2, status: 'added', code: 'create policy select_all_policy on public.items for\nselect using (true);' }], across);
+    expect(rule).toEqual({ failed: [], showsChange: false });
+    expect(checkEvidence([{ file: fix, line: 1, status: 'added', code: 'drop policy if exists select_all_policy on public.items;' }], across).showsChange).toBe(true);
   });
 
   it('still accepts a real one-line change', () => {

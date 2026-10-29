@@ -5,7 +5,8 @@
 import { readFileSync } from 'node:fs';
 import { fetchGitHubDiff, isGitHubUrl } from './engine/diff';
 import { runLucid, type LucidReport } from './engine/lucid';
-import { isProvider, type Provider } from './engine/model';
+import { isProvider, type Provider, type Usage } from './engine/model';
+import type { Attempt } from './engine/steps';
 
 const VALUE_FLAGS = new Set(['--provider', '--pick', '--write', '--tag']);
 
@@ -71,20 +72,38 @@ export const reportLines = (report: LucidReport): string[] => {
     const why = [r.claimsTrue ? null : 'false claims', r.quizOk ? null : 'quiz answered by the story'].filter((x) => x !== null);
     lines.push(`fact check: ${r.passed ? 'passed' : `failed (${why.join(', ') || 'no verdict'})`}`);
   }
-  lines.push(timeLine(report.timing));
+  const calls = (step: Attempt['step']) => report.attempts.filter((a) => a.step === step).length;
+  if (report.attempts.length) lines.push(`model calls: pick ${calls('pick')}, write ${calls('write')}, review ${calls('review')}`);
+  lines.push(timeLine(report.timing, report.usage));
   lines.push(`outcome: ${report.outcome}`);
   return lines;
 };
 
 const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)}s`;
+const thousands = (n: number): string => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 
-/** e.g. "time: pick 8.2s, write 21.5s, review 6.0s, total 36.1s"; steps that did not run are left out. */
-export const timeLine = (t: LucidReport['timing']): string => {
+/** "(5.2k in, 1.1k out, 0.8k reasoning)"; empty when no tokens were counted (fake provider). */
+const tokens = (u: Usage | null | undefined): string => {
+  if (!u || u.input + u.output === 0) return '';
+  return ` (${thousands(u.input)} in, ${thousands(u.output)} out${u.reasoning ? `, ${thousands(u.reasoning)} reasoning` : ''})`;
+};
+
+const sum = (all: (Usage | null)[]): Usage =>
+  all.reduce<Usage>(
+    (acc, u) => (u ? { calls: acc.calls + u.calls, input: acc.input + u.input, output: acc.output + u.output, reasoning: acc.reasoning + u.reasoning } : acc),
+    { calls: 0, input: 0, output: 0, reasoning: 0 },
+  );
+
+/**
+ * e.g. "time: pick 8.2s (5.2k in, 0.4k out), write 21.5s (...), review 6.0s (...), total 36.1s (...)".
+ * Steps that did not run are left out.
+ */
+export const timeLine = (t: LucidReport['timing'], usage?: LucidReport['usage']): string => {
   const parts = [
-    t.pickMs === null ? null : `pick ${seconds(t.pickMs)}`,
-    t.writeMs === null ? null : `write ${seconds(t.writeMs)}`,
-    t.reviewMs === null ? null : `review ${seconds(t.reviewMs)}`,
-    `total ${seconds(t.totalMs)}`,
+    t.pickMs === null ? null : `pick ${seconds(t.pickMs)}${tokens(usage?.pick)}`,
+    t.writeMs === null ? null : `write ${seconds(t.writeMs)}${tokens(usage?.write)}`,
+    t.reviewMs === null ? null : `review ${seconds(t.reviewMs)}${tokens(usage?.review)}`,
+    `total ${seconds(t.totalMs)}${usage ? tokens(sum([usage.pick, usage.write, usage.review])) : ''}`,
   ];
   return `time: ${parts.filter((p) => p !== null).join(', ')}`;
 };

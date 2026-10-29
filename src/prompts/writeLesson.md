@@ -15,6 +15,12 @@ Hard rules for the words (code checks these; breaking one sends your answer back
 - Say what your app now does differently, and what people using it would notice.
 - Be accurate above all. If you are unsure what a line does, do not claim it. Never invent behaviour the change does not show.
 
+Order of work: decide the quiz FIRST
+1. Pick the quick-check situation before writing anything else: one case the change handles that is worth testing, ideally one where the change does not kick in, or a different case than the obvious one.
+2. Then write the title, story and plainWords WITHOUT mentioning that case or its outcome. The reader should have to apply what they learned, not find a sentence.
+  - Bad: the story says "If the note is empty, your app shows a backup note. A filled-in note shows as it is." and the quiz asks what a filled-in note shows. The story already said it.
+  - Good: the story only explains the empty-note backup, and the quiz asks what a filled-in note shows ("Too short"). The reader has to work out that the backup does not kick in.
+
 The parts
 - "title": 60 characters or fewer. What changed for the people using the app, in plain words. Not the name of an idea.
 - "story": 2 to 4 short paragraphs, each 3 sentences or fewer. What people saw before, what they see now, and the comparison.

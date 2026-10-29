@@ -56,6 +56,17 @@ describe('lesson card', () => {
     expect(timeLine({ pickMs: 940, writeMs: null, reviewMs: null, totalMs: 1000 })).toBe('time: pick 0.9s, total 1.0s');
   });
 
+  it('shows tokens next to each step time', () => {
+    const usage = {
+      pick: { calls: 1, input: 5200, output: 400, reasoning: 300 },
+      write: { calls: 2, input: 14000, output: 9100, reasoning: 7000 },
+      review: null,
+    };
+    expect(timeLine({ pickMs: 3500, writeMs: 50000, reviewMs: null, totalMs: 53500 }, usage)).toBe(
+      'time: pick 3.5s (5.2k in, 400 out, 300 reasoning), write 50.0s (14.0k in, 9.1k out, 7.0k reasoning), total 53.5s (19.2k in, 9.5k out, 7.3k reasoning)',
+    );
+  });
+
   it('has no card without a lesson', () => {
     expect(toCard({ ...report, lesson: null })).toBeNull();
   });

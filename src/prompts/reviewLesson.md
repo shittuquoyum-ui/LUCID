@@ -12,8 +12,9 @@ Step 1: work out the real difference
 - Renames, reordering, comments, formatting and "only create it if it does not exist yet" guards do not change what people using the app see.
 
 Step 2: check the claims ("claimsTrue", "wrongClaims")
-- Check the title, every story paragraph, plainWords, and the marked answer and its feedback against the real difference.
+- Check the title, every story paragraph, plainWords, the question, all three options, the marked answer and all three feedback sentences against the real difference and against AFTER.
 - A claim is wrong when it says something is new or different that behaves the same BEFORE and AFTER; when it describes behaviour the code does not show; when it says who can do what and the code says otherwise; or when the marked answer is not actually right for AFTER.
+- Feedback counts as claims. Any feedback sentence that states something false about the code (for example "the button stays grey while saving" when AFTER never greys it out) is a wrong claim, even if the marked answer is right. A wrong option is fine; it is meant to be wrong.
 - Plain, simplified wording is fine if it is true. Do not flag a claim only for being simple, or for leaving details out.
 - For each wrong claim, write one sentence in "wrongClaims": quote the wrong words and say what is actually true. Example: "The title says people can now reset their password by email, but that reset link already worked before; this change only moves it."
 - "claimsTrue" is true only when "wrongClaims" is empty.

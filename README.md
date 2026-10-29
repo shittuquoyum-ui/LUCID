@@ -48,6 +48,7 @@ Every quote is checked against your code · Lucid stores nothing
 - **Keeps:** nothing. No database.
 - **Models:** Meta's standard mode only, never Contributor mode, so your code is not used for training.
 - Secret filtering is a precaution, not a guarantee. Don't commit secrets.
+- Lucid explains what your change says. It doesn't run your code, so it can't tell you whether the code works.
 
 ## Run it locally
 

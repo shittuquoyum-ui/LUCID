@@ -17,7 +17,7 @@ import type { DiffFile } from './diff';
 import { fakeReview } from './fake';
 import { parseWith } from './json';
 import { LISTING_LEGEND, renderListing, renderVersions } from './listing';
-import { callModel, type Provider } from './model';
+import { callModel, type Effort, type Provider, type Usage } from './model';
 import type { CheckedLesson } from './quoteCheck';
 import type { Attempt } from './steps';
 
@@ -74,12 +74,32 @@ export interface ReviewResult {
   attempts: Attempt[];
 }
 
+/**
+ * Reasoning effort for the fact check; LUCID_REVIEW_EFFORT overrides it.
+ * Baseten honours it (reasoning tokens roughly 0.5k low, 1.5k medium, 4k high).
+ * On three lessons with known verdicts (a false claim, a giveaway quiz, a good
+ * card), 'low' matched 'medium' and 'high' in every run at about half the time.
+ */
+export const REVIEW_EFFORT: Effort = 'low';
+
+const reviewEffort = (): Effort => {
+  const v = process.env.LUCID_REVIEW_EFFORT?.trim();
+  return v === 'minimal' || v === 'low' || v === 'medium' || v === 'high' ? v : REVIEW_EFFORT;
+};
+
+export interface ReviewOptions {
+  usage?: Usage;
+  effort?: Effort;
+}
+
 export const reviewLesson = async (
   files: DiffFile[],
   title: string | null,
   lesson: CheckedLesson,
   provider: Provider,
+  options: ReviewOptions = {},
 ): Promise<ReviewResult> => {
+  const effort = options.effort ?? reviewEffort();
   const system = prompt();
   const base = [
     title ? `Change title: ${title}` : null,
@@ -103,7 +123,11 @@ export const reviewLesson = async (
     const note = problems.length
       ? `\n\nYOUR PREVIOUS ANSWER WAS REJECTED. Fix these problems and return the complete JSON again:\n${problems.map((p) => `- ${p}`).join('\n')}`
       : '';
-    const text = await callModel(provider, { system, user: base + note, effort: 'medium', maxTokens: 8000 }, () => JSON.stringify(fakeReview()));
+    const text = await callModel(
+      provider,
+      { system, user: base + note, effort, maxTokens: 8000, usage: options.usage },
+      () => JSON.stringify(fakeReview()),
+    );
     const parsed = parseWith(ReviewSchema, text);
     if (parsed.ok) {
       const review = toReviewCheck(parsed.value);

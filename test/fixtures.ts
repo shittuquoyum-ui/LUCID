@@ -26,6 +26,32 @@ index 3333333..4444444 100644
 +grant select on items to anon;
 `;
 
+/**
+ * The real card-2 shape (ef980ae): a rule is taken out of an old migration
+ * and written again in a new migration file, next to one truly new line.
+ * The closing "}" is too short to count as moved between files.
+ */
+export const RULE_MOVED_TO_NEW_FILE_DIFF = `diff --git a/supabase/migrations/001_items.sql b/supabase/migrations/001_items.sql
+index 5555555..6666666 100644
+--- a/supabase/migrations/001_items.sql
++++ b/supabase/migrations/001_items.sql
+@@ -1,4 +1,1 @@
+ alter table items enable row level security;
+-create policy select_all_policy on public.items for
+-select using (true);
+-}
+diff --git a/supabase/migrations/005_fix_policies.sql b/supabase/migrations/005_fix_policies.sql
+new file mode 100644
+index 0000000..7777777
+--- /dev/null
++++ b/supabase/migrations/005_fix_policies.sql
+@@ -0,0 +1,4 @@
++drop policy if exists select_all_policy on public.items;
++create policy select_all_policy on public.items for
++  select using (true);
++}
+`;
+
 /** A small, realistic pull request diff: adds row-level security to a notes table. */
 export const RLS_DIFF = `diff --git a/supabase/migrations/002_notes_rls.sql b/supabase/migrations/002_notes_rls.sql
 new file mode 100644

@@ -5,7 +5,7 @@
  */
 import { parseDiff, type DiffSource } from './diff';
 import { filterDiff, type SkippedFile } from './filter';
-import { modelName, providerFor, type Provider } from './model';
+import { modelName, providerFor, type Provider, type Usage } from './model';
 import type { PlainCheck } from './plainCheck';
 import { renderComment } from './render';
 import type { ReviewCheck } from './review';
@@ -38,6 +38,8 @@ export interface LucidReport {
   models: { pick: string; write: string };
   /** Milliseconds per step; null for a step that did not run. */
   timing: { pickMs: number | null; writeMs: number | null; reviewMs: number | null; totalMs: number };
+  /** Tokens per step, from the API responses; null for a step that did not run. */
+  usage: { pick: Usage | null; write: Usage | null; review: Usage | null };
 }
 
 const since = (start: number): number => Math.round(performance.now() - start);
@@ -62,6 +64,7 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
     attempts: [],
     models: { pick: modelName(pickProvider), write: modelName(writeProvider) },
     timing: { pickMs: null, writeMs: null, reviewMs: null, totalMs: 0 },
+    usage: { pick: null, write: null, review: null },
   };
   const finish = (changes: Partial<LucidReport>): LucidReport => ({
     ...report,
@@ -73,6 +76,7 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
   const pickStarted = performance.now();
   const picked = await pickConcept(filtered.files, input.title, pickProvider);
   report.timing.pickMs = since(pickStarted);
+  report.usage.pick = picked.usage;
   report.attempts.push(...picked.attempts);
   report.pick = picked.pick;
   if (!picked.pick) return finish({ outcome: 'pick-failed' });
@@ -83,6 +87,8 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
   const written = await writeLesson(filtered.files, input.title, picked.pick, input.source, writeProvider, pickProvider);
   report.timing.writeMs = since(writeStarted) - written.reviewMs;
   report.timing.reviewMs = written.review ? written.reviewMs : null;
+  report.usage.write = written.usage.write;
+  report.usage.review = written.review ? written.usage.review : null;
   report.attempts.push(...written.attempts);
   report.check = written.check;
   report.plain = written.plain;

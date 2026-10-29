@@ -20,7 +20,7 @@ export const LISTING_LEGEND = [
   'Each line is: <marker> <line number> | <code>',
   "  '+' = added in this change (exists now)",
   "  ' ' = unchanged context (exists now)",
-  "  '=' = moved: the same line was removed and added back unchanged in this file. It is NOT a change; treat it as unchanged context",
+  "  '=' = moved: the same line was removed and added back unchanged (here, or from another file in this change). It is NOT a change; treat it as unchanged context",
   "  '-' = removed in this change (no longer exists; the number is its OLD line number)",
   'Lines shown as [hidden by Lucid: ...] were removed for safety and must never be quoted.',
 ].join('\n');

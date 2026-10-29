@@ -21,7 +21,7 @@ import { isChange, type DiffFile, type DiffSource } from './diff';
 import { fakeLesson, fakePick } from './fake';
 import { parseWith } from './json';
 import { LISTING_LEGEND, renderListing } from './listing';
-import { callModel, type Provider } from './model';
+import { callModel, emptyUsage, type Provider, type Usage } from './model';
 import { checkPlainEnglish, type PlainCheck } from './plainCheck';
 import { checkEvidence, checkLesson, NO_CHANGE_QUOTED, type CheckedLesson, type LessonCheck } from './quoteCheck';
 import { reviewLesson, type ReviewCheck } from './review';
@@ -46,18 +46,20 @@ const diffBlock = (files: DiffFile[], title: string | null): string =>
 export interface PickResult {
   pick: ConceptPick | null;
   attempts: Attempt[];
+  usage: Usage;
 }
 
 export const pickConcept = async (files: DiffFile[], title: string | null, provider: Provider): Promise<PickResult> => {
   const system = prompt('pickConcept');
   const base = `CONCEPT LIST (choose one id)\n${conceptListForPrompt()}\n\n${diffBlock(files, title)}`;
   const attempts: Attempt[] = [];
+  const usage = emptyUsage();
   let problems: string[] = [];
 
   for (let round = 0; round < 2; round += 1) {
     const text = await callModel(
       provider,
-      { system, user: base + (problems.length ? retryNote(problems) : ''), effort: 'low', maxTokens: 4000 },
+      { system, user: base + (problems.length ? retryNote(problems) : ''), effort: 'low', maxTokens: 4000, usage },
       () => JSON.stringify(fakePick(files)),
     );
     const parsed = parseWith(ConceptPickSchema, text);
@@ -65,7 +67,7 @@ export const pickConcept = async (files: DiffFile[], title: string | null, provi
       problems = parsed.problems;
     } else if (!parsed.value.teach) {
       attempts.push({ step: 'pick', provider, problems: [] });
-      return { pick: parsed.value, attempts };
+      return { pick: parsed.value, attempts, usage };
     } else if (parsed.value.concept === 'none') {
       problems = ['"teach" is true but "concept" is "none": pick a concept id from the list, or set "teach" to false.'];
     } else if (parsed.value.evidence.length === 0) {
@@ -75,7 +77,7 @@ export const pickConcept = async (files: DiffFile[], title: string | null, provi
       if (failed.length < parsed.value.evidence.length && showsChange) {
         attempts.push({ step: 'pick', provider, problems: failed.map((f) => `evidence ${f.item.file}:${f.item.line} dropped (${f.reason})`) });
         const kept = parsed.value.evidence.filter((e) => !failed.some((f) => f.item === e));
-        return { pick: { ...parsed.value, evidence: kept }, attempts };
+        return { pick: { ...parsed.value, evidence: kept }, attempts, usage };
       }
       problems = failed.map((f) => `evidence in ${f.item.file} at line ${f.item.line}: ${f.reason}`);
       // True lines, but none of them changed: there is no new behaviour to teach from them.
@@ -83,7 +85,7 @@ export const pickConcept = async (files: DiffFile[], title: string | null, provi
     }
     attempts.push({ step: 'pick', provider, problems });
   }
-  return { pick: null, attempts };
+  return { pick: null, attempts, usage };
 };
 
 // ---------------------------------------------------------------------------
@@ -98,6 +100,7 @@ export interface LessonResult {
   attempts: Attempt[];
   /** Milliseconds spent in fact checks, so the report can show them apart from writing. */
   reviewMs: number;
+  usage: { write: Usage; review: Usage };
 }
 
 export const writeLesson = async (
@@ -126,10 +129,11 @@ export const writeLesson = async (
   let lastCheck: LessonCheck | null = null;
   let lastReview: ReviewCheck | null = null;
   let reviewMs = 0;
+  const usage = { write: emptyUsage(), review: emptyUsage() };
 
   const factCheck = async (lesson: CheckedLesson): Promise<ReviewCheck> => {
     const started = performance.now();
-    const result = await reviewLesson(files, title, lesson, reviewProvider);
+    const result = await reviewLesson(files, title, lesson, reviewProvider, { usage: usage.review });
     reviewMs += performance.now() - started;
     attempts.push(...result.attempts);
     lastReview = result.review;
@@ -142,13 +146,14 @@ export const writeLesson = async (
     review: lastReview,
     attempts,
     reviewMs: Math.round(reviewMs),
+    usage,
   });
 
   for (let round = 0; round < 2; round += 1) {
     const lastRound = round === 1;
     const text = await callModel(
       provider,
-      { system, user: base + (problems.length ? retryNote(problems) : ''), effort: 'medium', maxTokens: 12000 },
+      { system, user: base + (problems.length ? retryNote(problems) : ''), effort: 'medium', maxTokens: 12000, usage: usage.write },
       () => JSON.stringify(fakeLesson(pick)),
     );
     const parsed = parseWith(LessonSchema, text);
