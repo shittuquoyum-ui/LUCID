@@ -7,9 +7,10 @@
 lesson.md
 samples/
 
-# Editor settings, except the launch config that runs the extension (F5)
+# Editor settings, except the launch config and build task that run the extension (F5)
 .vscode/*
 !.vscode/launch.json
+!.vscode/tasks.json
 
 node_modules/
 dist/

@@ -87,7 +87,7 @@ npm run build        # bundles the extension and the engine into extension/dist
 3. Open any git repository there, change something, and commit.
 4. Keep working. When the lesson is ready, a toast appears: **Lucid: …** with **Show me**. The status bar shows what Lucid is doing.
 
-`lucid.autoExplain` (default on) turns the automatic run off. **Lucid: Explain my last commit** runs it by hand. Rebuild (`npm run build`, or `npm run watch`) after changing the code.
+`lucid.autoExplain` (default on) turns the automatic run off. **Lucid: Explain my last commit** runs it by hand. F5 rebuilds the extension first ("Build Lucid extension" task).
 
 ## Tests
 
