@@ -54,11 +54,24 @@ const PROVIDERS: Record<Exclude<Provider, 'fake'>, ProviderConfig> = {
 
 const clients = new Map<string, OpenAI>();
 
+/** Keys handed over by the editor extension (from its secret storage); they win over the environment. */
+let givenKeys: Partial<Record<Exclude<Provider, 'fake'>, string>> = {};
+
+/**
+ * Use these keys instead of MODEL_API_KEY / BASETEN_API_KEY. The extension
+ * calls this rather than writing keys into process.env, which every other
+ * extension in the same host process can read.
+ */
+export const useApiKeys = (keys: Partial<Record<Exclude<Provider, 'fake'>, string>>): void => {
+  givenKeys = { ...keys };
+  clients.clear();
+};
+
 const clientFor = (provider: Exclude<Provider, 'fake'>): OpenAI => {
   const cached = clients.get(provider);
   if (cached) return cached;
   const config = PROVIDERS[provider];
-  const apiKey = process.env[config.keyEnv]?.trim();
+  const apiKey = (givenKeys[provider] ?? process.env[config.keyEnv])?.trim();
   if (!apiKey) throw new Error(`${config.keyEnv} is not set. Add it to your .env file (never commit it).`);
   const client = new OpenAI({ baseURL: config.baseURL, apiKey, timeout: 120_000, maxRetries: 2 });
   clients.set(provider, client);

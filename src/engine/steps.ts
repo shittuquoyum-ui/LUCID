@@ -15,7 +15,6 @@
  * retry; if they are still false after it, there is no lesson. A quiz the
  * story already answers is kept and marked, like plain-English failures.
  */
-import { readFileSync } from 'node:fs';
 import { conceptById, conceptListForPrompt } from '../concepts';
 import { isChange, type DiffFile, type DiffSource } from './diff';
 import { fakeLesson, fakePick } from './fake';
@@ -23,11 +22,11 @@ import { parseWith } from './json';
 import { LISTING_LEGEND, renderListing } from './listing';
 import { callModel, emptyUsage, type Provider, type Usage } from './model';
 import { checkPlainEnglish, type PlainCheck } from './plainCheck';
+import { prompt } from './prompts';
 import { checkEvidence, checkLesson, NO_CHANGE_QUOTED, type CheckedLesson, type LessonCheck } from './quoteCheck';
 import { reviewLesson, type ReviewCheck } from './review';
 import { ConceptPickSchema, LessonSchema, type ConceptPick } from './schemas';
 
-const prompt = (name: string): string => readFileSync(new URL(`../prompts/${name}.md`, import.meta.url), 'utf8');
 
 export interface Attempt {
   step: 'pick' | 'write' | 'review';
@@ -111,6 +110,8 @@ export const writeLesson = async (
   provider: Provider,
   /** Who fact-checks the lesson; a different model from the writer is best. */
   reviewProvider: Provider = provider,
+  /** Told before each writer call and each fact check, e.g. for a progress display. */
+  onStep?: (step: 'writing' | 'fact-checking') => void,
 ): Promise<LessonResult> => {
   const system = prompt('writeLesson');
   const concept = conceptById(pick.concept);
@@ -132,6 +133,7 @@ export const writeLesson = async (
   const usage = { write: emptyUsage(), review: emptyUsage() };
 
   const factCheck = async (lesson: CheckedLesson): Promise<ReviewCheck> => {
+    onStep?.('fact-checking');
     const started = performance.now();
     const result = await reviewLesson(files, title, lesson, reviewProvider, { usage: usage.review });
     reviewMs += performance.now() - started;
@@ -151,6 +153,7 @@ export const writeLesson = async (
 
   for (let round = 0; round < 2; round += 1) {
     const lastRound = round === 1;
+    onStep?.('writing');
     const text = await callModel(
       provider,
       { system, user: base + (problems.length ? retryNote(problems) : ''), effort: 'medium', maxTokens: 12000, usage: usage.write },

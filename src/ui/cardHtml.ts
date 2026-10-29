@@ -1,7 +1,11 @@
 /**
  * The lesson card as one self-contained HTML page: inline CSS, a tiny inline
- * script for the quick check, no external resources. Used by the preview now
- * and by the editor side panel later.
+ * script for the quick check, no external resources. Used by the browser
+ * preview and by the editor side panel.
+ *
+ * In webview mode the page carries a strict Content Security Policy (only
+ * the nonce-tagged style and script may run) and takes its colours from the
+ * editor theme instead of its own light/dark palette.
  *
  * Every piece of card text is escaped. Text in `backticks` is shown as code.
  */
@@ -33,7 +37,8 @@ export const dedent = (code: string): string => {
 
 const codeBox = (q: CardQuote): string => `<pre class="code"><code>${escapeHtml(dedent(q.code))}</code></pre>`;
 
-const CSS = `
+/** Colours for the browser preview: its own palette, light and dark. */
+const PAGE_TOKENS = `
 :root {
   color-scheme: light dark;
   --bg: #ffffff; --surface: #f6f8fa; --text: #1f2328; --muted: #59636e; --border: #d1d9e0;
@@ -45,6 +50,23 @@ const CSS = `
     --accent: #4493f8; --right: #3fb950; --right-bg: rgba(46, 160, 67, 0.15); --wrong: #f85149; --wrong-bg: rgba(248, 81, 73, 0.15);
   }
 }
+`;
+
+/** Colours for the editor panel: whatever theme the editor uses. */
+const WEBVIEW_TOKENS = `
+:root {
+  --bg: var(--vscode-editor-background); --surface: var(--vscode-textCodeBlock-background);
+  --text: var(--vscode-foreground); --muted: var(--vscode-descriptionForeground);
+  --border: var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.35)));
+  --accent: var(--vscode-textLink-foreground);
+  --right: var(--vscode-testing-iconPassed); --right-bg: color-mix(in srgb, var(--vscode-testing-iconPassed) 15%, transparent);
+  --wrong: var(--vscode-testing-iconFailed); --wrong-bg: color-mix(in srgb, var(--vscode-testing-iconFailed) 15%, transparent);
+}
+body { font-family: var(--vscode-font-family); }
+code, pre.code code { font-family: var(--vscode-editor-font-family); }
+`;
+
+const CSS = `
 * { box-sizing: border-box; }
 body {
   margin: 0; padding: 24px 16px; background: var(--bg); color: var(--text);
@@ -100,7 +122,18 @@ document.querySelectorAll('.quiz').forEach(function (quiz) {
 });
 `;
 
-export const renderCardHtml = (card: LessonCard): string => {
+export interface CardHtmlOptions {
+  /** Render for an editor webview: strict CSP and theme colours. The nonce must be fresh per render. */
+  webview?: { nonce: string };
+}
+
+export const renderCardHtml = (card: LessonCard, options: CardHtmlOptions = {}): string => {
+  const nonce = options.webview?.nonce;
+  if (nonce !== undefined && !/^[A-Za-z0-9_-]{16,}$/.test(nonce)) throw new Error('the webview nonce must be 16+ letters, digits, "-" or "_"');
+  const tag = nonce ? ` nonce="${nonce}"` : '';
+  const csp = nonce
+    ? `\n<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; base-uri 'none'; form-action 'none';">`
+    : '';
   const extra = card.extraQuote
     ? `
     <h2>Also in this change</h2>
@@ -112,10 +145,10 @@ export const renderCardHtml = (card: LessonCard): string => {
   return `<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8">${csp}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lucid · ${escapeHtml(card.title)}</title>
-<style>${CSS}</style>
+<style${tag}>${CSS}${nonce ? WEBVIEW_TOKENS : PAGE_TOKENS}</style>
 </head>
 <body>
 <main>
@@ -142,7 +175,7 @@ export const renderCardHtml = (card: LessonCard): string => {
 
   <footer>Every quote is checked against your code · Lucid stores nothing</footer>
 </main>
-<script>${SCRIPT}</script>
+<script${tag}>${SCRIPT}</script>
 </body>
 </html>
 `;

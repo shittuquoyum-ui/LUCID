@@ -1,0 +1,59 @@
+{
+  "name": "lucid",
+  "displayName": "Lucid",
+  "description": "After each commit, a plain-English lesson about what your change does.",
+  "version": "0.1.0",
+  "publisher": "lucid-dev",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Education",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "lucid.setKeys",
+        "title": "Lucid: Set API keys"
+      },
+      {
+        "command": "lucid.explainLastCommit",
+        "title": "Lucid: Explain my last commit"
+      },
+      {
+        "command": "lucid.showLastLesson",
+        "title": "Lucid: Show last lesson"
+      }
+    ],
+    "configuration": {
+      "title": "Lucid",
+      "properties": {
+        "lucid.autoExplain": {
+          "type": "boolean",
+          "default": true,
+          "description": "Explain each new commit automatically, in the background."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "@types/vscode": "~1.90.0",
+    "esbuild": "^0.25.12",
+    "typescript": "~5.8.2"
+  }
+}

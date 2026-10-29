@@ -72,6 +72,23 @@ npm run -s preview -- https://github.com/owner/repo/commit/abc1234 --pick basete
 
 The lesson (or card) prints to stdout; a report of what was sent, skipped and checked prints to stderr. Use `-s` so npm's own banner stays out of the output.
 
+## Run the extension
+
+Works in VS Code and Cursor.
+
+```bash
+cd extension
+npm install
+npm run build        # bundles the extension and the engine into extension/dist
+```
+
+1. Open this repository in VS Code and press **F5** ("Run Lucid extension"). A second window opens: the Extension Development Host.
+2. In that window, open the command palette and run **Lucid: Set API keys** (Meta, then Baseten). Keys go to the editor's secret storage, never to settings or files.
+3. Open any git repository there, change something, and commit.
+4. Keep working. When the lesson is ready, a toast appears: **Lucid: …** with **Show me**. The status bar shows what Lucid is doing.
+
+`lucid.autoExplain` (default on) turns the automatic run off. **Lucid: Explain my last commit** runs it by hand. Rebuild (`npm run build`, or `npm run watch`) after changing the code.
+
 ## Tests
 
 ```bash
@@ -84,7 +101,7 @@ npm run typecheck
 - [x] Engine: diff reader, filter, quote checker, schemas, prompts, retries, CLI
 - [x] Plain-English lesson card: new lesson shape, plain-English checker, card JSON
 - [x] Card page (HTML) with a clickable quick check, and `npm run preview`
-- [ ] VS Code extension: lesson card in a side panel after each commit (Cursor and Windsurf too)
+- [x] VS Code extension (smallest version): lesson after each new commit, toast, card panel, keys in secret storage (VS Code and Cursor)
 - [ ] Backend for the extension (model calls without keys on the builder's machine)
 - [ ] GitHub comment bot (renderer kept working with the new card layout)
 - [ ] Quality testing with real builders

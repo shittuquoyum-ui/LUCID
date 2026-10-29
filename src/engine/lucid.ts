@@ -18,7 +18,11 @@ export interface LucidInput {
   source: DiffSource | null;
   title: string | null;
   providers?: { pick?: Provider; write?: Provider };
+  /** Told when each step starts, e.g. for a progress display. */
+  onStep?: (step: LucidStep) => void;
 }
+
+export type LucidStep = 'picking' | 'writing' | 'fact-checking';
 
 export interface LucidReport {
   /** 'lesson' = a comment is ready; otherwise why there is none. */
@@ -73,6 +77,7 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
   });
   if (filtered.files.length === 0) return finish({});
 
+  input.onStep?.('picking');
   const pickStarted = performance.now();
   const picked = await pickConcept(filtered.files, input.title, pickProvider);
   report.timing.pickMs = since(pickStarted);
@@ -84,7 +89,7 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
 
   const writeStarted = performance.now();
   // The pick provider fact-checks, so the writer never grades its own lesson.
-  const written = await writeLesson(filtered.files, input.title, picked.pick, input.source, writeProvider, pickProvider);
+  const written = await writeLesson(filtered.files, input.title, picked.pick, input.source, writeProvider, pickProvider, input.onStep);
   report.timing.writeMs = since(writeStarted) - written.reviewMs;
   report.timing.reviewMs = written.review ? written.reviewMs : null;
   report.usage.write = written.usage.write;

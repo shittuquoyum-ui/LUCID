@@ -11,13 +11,13 @@
  * Its answer is untrusted input like any other: it must parse and pass the
  * schema. An answer that never does counts as a failed check.
  */
-import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import type { DiffFile } from './diff';
 import { fakeReview } from './fake';
 import { parseWith } from './json';
 import { LISTING_LEGEND, renderListing, renderVersions } from './listing';
 import { callModel, type Effort, type Provider, type Usage } from './model';
+import { prompt } from './prompts';
 import type { CheckedLesson } from './quoteCheck';
 import type { Attempt } from './steps';
 
@@ -55,7 +55,6 @@ export const toReviewCheck = (r: Review): ReviewCheck => {
   return { passed: claimsTrue && quizOk, claimsTrue, quizOk, problems };
 };
 
-const prompt = (): string => readFileSync(new URL('../prompts/reviewLesson.md', import.meta.url), 'utf8');
 
 /** What the reviewer needs from the lesson: the words a reader sees, plus where the quotes are. */
 const lessonForReview = (lesson: CheckedLesson) => ({
@@ -100,7 +99,7 @@ export const reviewLesson = async (
   options: ReviewOptions = {},
 ): Promise<ReviewResult> => {
   const effort = options.effort ?? reviewEffort();
-  const system = prompt();
+  const system = prompt('reviewLesson');
   const base = [
     title ? `Change title: ${title}` : null,
     'THE CHANGE AS BEFORE AND AFTER',
