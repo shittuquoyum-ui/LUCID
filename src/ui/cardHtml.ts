@@ -1,6 +1,7 @@
 /**
- * The lesson card as one self-contained HTML page: inline CSS, a tiny inline
- * script for the quick check, no external resources. Used by the browser
+ * The card (a lesson or a warning) as one self-contained HTML page: inline
+ * CSS, a tiny inline script for the quick check and the Copy button, no
+ * external resources. Used by the browser
  * preview and by the editor side panel.
  *
  * In webview mode the page carries a strict Content Security Policy (only
@@ -9,7 +10,7 @@
  *
  * Every piece of card text is escaped. Text in `backticks` is shown as code.
  */
-import type { CardQuote, LessonCard } from '../engine/card';
+import type { Card, CardQuote, LessonCard, WarningCard } from '../engine/card';
 import { lineLabel } from '../engine/render';
 
 const LETTERS = ['A', 'B', 'C'] as const;
@@ -43,11 +44,13 @@ const PAGE_TOKENS = `
   color-scheme: light dark;
   --bg: #ffffff; --surface: #f6f8fa; --text: #1f2328; --muted: #59636e; --border: #d1d9e0;
   --accent: #0969da; --right: #1a7f37; --right-bg: #dafbe1; --wrong: #cf222e; --wrong-bg: #ffebe9;
+  --amber: #9a6700; --amber-bg: #fff8c5; --red: #cf222e; --red-bg: #ffebe9;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0d1117; --surface: #151b23; --text: #e6edf3; --muted: #9198a1; --border: #3d444d;
     --accent: #4493f8; --right: #3fb950; --right-bg: rgba(46, 160, 67, 0.15); --wrong: #f85149; --wrong-bg: rgba(248, 81, 73, 0.15);
+    --amber: #d29922; --amber-bg: rgba(187, 128, 9, 0.15); --red: #f85149; --red-bg: rgba(248, 81, 73, 0.15);
   }
 }
 `;
@@ -61,6 +64,8 @@ const WEBVIEW_TOKENS = `
   --accent: var(--vscode-textLink-foreground);
   --right: var(--vscode-testing-iconPassed); --right-bg: color-mix(in srgb, var(--vscode-testing-iconPassed) 15%, transparent);
   --wrong: var(--vscode-testing-iconFailed); --wrong-bg: color-mix(in srgb, var(--vscode-testing-iconFailed) 15%, transparent);
+  --amber: var(--vscode-editorWarning-foreground); --amber-bg: color-mix(in srgb, var(--vscode-editorWarning-foreground) 15%, transparent);
+  --red: var(--vscode-editorError-foreground); --red-bg: color-mix(in srgb, var(--vscode-editorError-foreground) 15%, transparent);
 }
 body { font-family: var(--vscode-font-family); }
 code, pre.code code { font-family: var(--vscode-editor-font-family); }
@@ -101,9 +106,40 @@ pre.code code { display: block; width: max-content; min-width: 100%; background:
 .fb.right { color: var(--right); }
 .fb.wrong { color: var(--wrong); }
 footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); }
+/* Warning cards: amber, red when the severity is high. */
+main.warning { --sev: var(--amber); --sev-bg: var(--amber-bg); border-left: 4px solid var(--sev); padding-left: 16px; }
+main.warning.sev-high { --sev: var(--red); --sev-bg: var(--red-bg); }
+main.warning .plain { border-left-color: var(--sev); }
+.head { display: flex; gap: 8px; align-items: center; }
+.badge { padding: 2px 8px; border-radius: 999px; color: var(--sev); background: var(--sev-bg); border: 1px solid var(--sev); }
+.severity { color: var(--sev); }
+pre.fix code { white-space: pre-wrap; width: auto; }
+.copy-row { display: flex; gap: 10px; align-items: center; }
+.copy { font: inherit; font-size: 14px; padding: 6px 14px; cursor: pointer; color: var(--bg); background: var(--sev, var(--accent)); border: 0; border-radius: 6px; }
+.copy:focus-visible { outline: 2px solid var(--sev); outline-offset: 2px; }
+.copied { font-size: 14px; color: var(--muted); }
 `;
 
+// Copy: in the editor the panel asks the extension (which copies its own copy
+// of the fix prompt and answers "copied"); in a browser it uses the clipboard.
 const SCRIPT = `
+var editor = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
+var showCopied = function () {
+  document.querySelectorAll('.copied').forEach(function (s) {
+    s.textContent = 'Copied';
+    setTimeout(function () { s.textContent = ''; }, 2500);
+  });
+};
+document.querySelectorAll('[data-copy]').forEach(function (button) {
+  button.addEventListener('click', function () {
+    if (editor) return editor.postMessage({ type: 'copy-fix' });
+    var text = document.getElementById(button.getAttribute('data-copy')).textContent;
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(showCopied);
+  });
+});
+window.addEventListener('message', function (event) {
+  if (event.data && event.data.type === 'copied') showCopied();
+});
 document.querySelectorAll('.quiz').forEach(function (quiz) {
   var answer = quiz.getAttribute('data-answer');
   quiz.querySelectorAll('.opt').forEach(function (button) {
@@ -127,19 +163,21 @@ export interface CardHtmlOptions {
   webview?: { nonce: string };
 }
 
-export const renderCardHtml = (card: LessonCard, options: CardHtmlOptions = {}): string => {
-  const nonce = options.webview?.nonce;
-  if (nonce !== undefined && !/^[A-Za-z0-9_-]{16,}$/.test(nonce)) throw new Error('the webview nonce must be 16+ letters, digits, "-" or "_"');
-  const tag = nonce ? ` nonce="${nonce}"` : '';
-  const csp = nonce
-    ? `\n<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; base-uri 'none'; form-action 'none';">`
-    : '';
-  const extra = card.extraQuote
+const extraBox = (card: Card): string =>
+  card.extraQuote
     ? `
     <h2>Also in this change</h2>
     <div class="where">${where(card.extraQuote)}${card.extraQuote.removed ? ' (taken out)' : ''}</div>
     ${codeBox(card.extraQuote)}
     <p>${prose(card.extraQuote.note)}</p>`
+    : '';
+
+export const renderCardHtml = (card: Card, options: CardHtmlOptions = {}): string => {
+  const nonce = options.webview?.nonce;
+  if (nonce !== undefined && !/^[A-Za-z0-9_-]{16,}$/.test(nonce)) throw new Error('the webview nonce must be 16+ letters, digits, "-" or "_"');
+  const tag = nonce ? ` nonce="${nonce}"` : '';
+  const csp = nonce
+    ? `\n<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; base-uri 'none'; form-action 'none';">`
     : '';
 
   return `<!doctype html>
@@ -151,7 +189,49 @@ export const renderCardHtml = (card: LessonCard, options: CardHtmlOptions = {}):
 <style${tag}>${CSS}${nonce ? WEBVIEW_TOKENS : PAGE_TOKENS}</style>
 </head>
 <body>
-<main>
+${card.kind === 'risk' ? warningBody(card) : lessonBody(card)}
+<script${tag}>${SCRIPT}</script>
+</body>
+</html>
+`;
+};
+
+const SEVERITY_LABEL: Record<WarningCard['severity'], string> = { high: 'High', medium: 'Medium', low: 'Low' };
+
+/**
+ * The warning card. The head holds one label per kind of evidence: today
+ * always "Warning". Once the sandbox prover exists, a 'proven' card gets a
+ * "Proven" label here and an evidence block (what the prover did and saw)
+ * under the title; until then nothing on this card may claim proof.
+ */
+const warningBody = (card: WarningCard): string => `<main class="warning sev-${card.severity}" data-evidence="${escapeHtml(card.evidence)}">
+  <p class="label head"><span class="badge">Warning</span> <span class="severity">${SEVERITY_LABEL[card.severity]}</span></p>
+  <h1>${prose(card.title)}</h1>
+
+  <h2>What could happen</h2>
+  <p>${prose(card.whatCouldHappen)}</p>
+
+  <h2>Who’s affected</h2>
+  <p>${prose(card.whoIsAffected)}</p>
+
+  <h2>The line</h2>
+  <div class="where">${where(card.keyLine)}</div>
+  ${codeBox(card.keyLine)}
+  <p class="plain"><strong>In plain words:</strong> ${prose(card.keyLine.plainWords)}</p>
+  ${extraBox(card)}
+
+  <h2>Fix it with your AI</h2>
+  <p>Paste this into Cursor, Claude Code, Lovable or whichever AI tool you build with.</p>
+  <pre class="code fix"><code id="fix-prompt">${escapeHtml(card.fixPrompt)}</code></pre>
+  <p class="copy-row"><button type="button" class="copy" data-copy="fix-prompt">Copy</button> <span class="copied" aria-live="polite"></span></p>
+
+  <h2>The idea behind it</h2>
+  <p>${prose(card.ideaBehindIt)}</p>
+
+  <footer>Lucid flags risks it can see in this change. It’s a safety net, not a security audit.</footer>
+</main>`;
+
+const lessonBody = (card: LessonCard): string => `<main>
   <p class="label">What this change does</p>
   <h1>${prose(card.title)}</h1>
   ${card.story.map((p) => `<p>${prose(p)}</p>`).join('\n  ')}
@@ -160,7 +240,7 @@ export const renderCardHtml = (card: LessonCard, options: CardHtmlOptions = {}):
   <div class="where">${where(card.keyLine)}</div>
   ${codeBox(card.keyLine)}
   <p class="plain"><strong>In plain words:</strong> ${prose(card.keyLine.plainWords)}</p>
-  ${extra}
+  ${extraBox(card)}
 
   <h2>Quick check</h2>
   <section class="quiz" data-answer="${escapeHtml(card.answer)}">
@@ -174,9 +254,4 @@ export const renderCardHtml = (card: LessonCard, options: CardHtmlOptions = {}):
   </section>
 
   <footer>Every quote is checked against your code · Lucid stores nothing</footer>
-</main>
-<script${tag}>${SCRIPT}</script>
-</body>
-</html>
-`;
-};
+</main>`;

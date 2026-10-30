@@ -1,0 +1,22 @@
+diff --git a/src/components/UsersTable.tsx b/src/components/UsersTable.tsx
+new file mode 100644
+--- /dev/null
++++ b/src/components/UsersTable.tsx
+@@ -0,0 +1,17 @@
++'use client';
++
++import { createClient } from '@supabase/supabase-js';
++import { useEffect, useState } from 'react';
++
++const supabase = createClient(
++  process.env.NEXT_PUBLIC_SUPABASE_URL!,
++  process.env.SUPABASE_SERVICE_ROLE_KEY!,
++);
++
++export function UsersTable() {
++  const [users, setUsers] = useState<{ id: string; email: string }[]>([]);
++  useEffect(() => {
++    supabase.from('profiles').select('id, email').then(({ data }) => setUsers(data ?? []));
++  }, []);
++  return <ul>{users.map((u) => <li key={u.id}>{u.email}</li>)}</ul>;
++}

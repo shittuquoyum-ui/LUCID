@@ -1,23 +1,30 @@
 /**
  * The whole agent for one change:
- *   diff -> filter -> pick concept -> write lesson -> verify quotes -> check plain English
- *     -> fact check (the pick provider) -> comment
+ *   diff -> filter -> risk signals -> pick (risk, lesson or nothing)
+ *     -> write the warning or the lesson -> verify quotes -> check plain English
+ *     -> fact check (the pick provider) -> card
+ * A risk always beats a lesson: the picker is told so, and gets the signals.
  */
 import { parseDiff, type DiffSource } from './diff';
 import { filterDiff, type SkippedFile } from './filter';
 import { modelName, providerFor, type Provider, type Usage } from './model';
 import type { PlainCheck } from './plainCheck';
 import { renderComment } from './render';
-import type { ReviewCheck } from './review';
-import { pickConcept, writeLesson, type Attempt } from './steps';
-import type { ConceptPick } from './schemas';
-import type { CheckedLesson, LessonCheck } from './quoteCheck';
+import type { ReviewCheck, WarningReviewCheck } from './review';
+import { findSignals, type Signal } from './signals';
+import { pickConcept, writeLesson, writeWarning, type Attempt } from './steps';
+import type { ConceptPick, Severity } from './schemas';
+import type { CheckedLesson, CheckedRisk, LessonCheck } from './quoteCheck';
+
+export type CardKind = 'risk' | 'lesson';
 
 export interface LucidInput {
   diffText: string;
   source: DiffSource | null;
   title: string | null;
   providers?: { pick?: Provider; write?: Provider };
+  /** Which cards to write (default both). Without 'lesson', a lesson pick stops before the writer. */
+  kinds?: CardKind[];
   /** Told when each step starts, e.g. for a progress display. */
   onStep?: (step: LucidStep) => void;
 }
@@ -25,16 +32,24 @@ export interface LucidInput {
 export type LucidStep = 'picking' | 'writing' | 'fact-checking';
 
 export interface LucidReport {
-  /** 'lesson' = a comment is ready; otherwise why there is none. */
-  outcome: 'lesson' | 'nothing-to-teach' | 'no-readable-files' | 'pick-failed' | 'lesson-failed';
+  /** 'lesson' or 'warning' = a card is ready; otherwise why there is none. */
+  outcome: 'lesson' | 'warning' | 'nothing-to-teach' | 'no-readable-files' | 'pick-failed' | 'lesson-failed' | 'warning-failed' | 'not-wanted';
   comment: string | null;
   lesson: CheckedLesson | null;
+  /** The warning card's content; only when the outcome is 'warning'. */
+  warning: CheckedRisk | null;
+  /** The warning's severity: the fact checker's, once it ran. */
+  severity: Severity | null;
   pick: ConceptPick | null;
+  /** What the pattern checks saw, before the picker. */
+  signals: Signal[];
   check: LessonCheck | null;
   /** Kept lessons can still fail this; the card shows the result. */
   plain: PlainCheck | null;
   /** The fact check. A kept lesson always has true claims; its quiz may still be marked. */
   review: ReviewCheck | null;
+  /** The fact check of a warning. A kept warning always passed it. */
+  warningReview: WarningReviewCheck | null;
   sentFiles: string[];
   skippedFiles: SkippedFile[];
   redactedLines: number;
@@ -58,10 +73,14 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
     outcome: 'no-readable-files',
     comment: null,
     lesson: null,
+    warning: null,
+    severity: null,
     pick: null,
+    signals: [],
     check: null,
     plain: null,
     review: null,
+    warningReview: null,
     sentFiles: filtered.files.map((f) => f.path),
     skippedFiles: filtered.skipped,
     redactedLines: filtered.redacted,
@@ -77,17 +96,37 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
   });
   if (filtered.files.length === 0) return finish({});
 
+  report.signals = findSignals(filtered.files);
   input.onStep?.('picking');
   const pickStarted = performance.now();
-  const picked = await pickConcept(filtered.files, input.title, pickProvider);
+  const picked = await pickConcept(filtered.files, input.title, pickProvider, report.signals);
   report.timing.pickMs = since(pickStarted);
   report.usage.pick = picked.usage;
   report.attempts.push(...picked.attempts);
   report.pick = picked.pick;
   if (!picked.pick) return finish({ outcome: 'pick-failed' });
-  if (!picked.pick.teach) return finish({ outcome: 'nothing-to-teach' });
+  if (picked.pick.kind === 'none') return finish({ outcome: 'nothing-to-teach' });
+
+  // A kind the caller cannot show (an older extension, or lessons turned off) is not written at all.
+  if (!(input.kinds ?? ['risk', 'lesson']).includes(picked.pick.kind)) return finish({ outcome: 'not-wanted' });
 
   const writeStarted = performance.now();
+  if (picked.pick.kind === 'risk') {
+    // The pick provider fact-checks here too.
+    const written = await writeWarning(filtered.files, input.title, picked.pick, input.source, writeProvider, pickProvider, input.onStep);
+    report.timing.writeMs = since(writeStarted) - written.reviewMs;
+    report.timing.reviewMs = written.review ? written.reviewMs : null;
+    report.usage.write = written.usage.write;
+    report.usage.review = written.review ? written.usage.review : null;
+    report.attempts.push(...written.attempts);
+    report.check = written.check;
+    report.plain = written.plain;
+    report.warningReview = written.review;
+    report.severity = written.severity;
+    if (!written.warning) return finish({ outcome: 'warning-failed' });
+    return finish({ outcome: 'warning', warning: written.warning });
+  }
+
   // The pick provider fact-checks, so the writer never grades its own lesson.
   const written = await writeLesson(filtered.files, input.title, picked.pick, input.source, writeProvider, pickProvider, input.onStep);
   report.timing.writeMs = since(writeStarted) - written.reviewMs;

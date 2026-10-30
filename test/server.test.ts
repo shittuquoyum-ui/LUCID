@@ -13,10 +13,14 @@ const report = (over: Partial<LucidReport> = {}): LucidReport => ({
   outcome: 'nothing-to-teach',
   comment: null,
   lesson: null,
+  warning: null,
+  severity: null,
   pick: null,
+  signals: [],
   check: null,
   plain: null,
   review: null,
+  warningReview: null,
   sentFiles: ['a.ts'],
   skippedFiles: [],
   redactedLines: 0,
@@ -94,6 +98,15 @@ describe('handleLesson', () => {
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ outcome: 'nothing-to-teach', card: null });
     expect(r.body.report).toEqual(expect.arrayContaining(['outcome: nothing-to-teach']));
+  });
+
+  it('writes lessons only for extensions that predate warnings, and the asked kinds otherwise', async () => {
+    const asked: unknown[] = [];
+    const recording = deps({ runLesson: async ({ kinds }) => (asked.push(kinds), report()) });
+    await handleLesson('Bearer good', body, recording);
+    await handleLesson('Bearer good', JSON.stringify({ diff: 'x', kinds: ['risk'] }), recording);
+    expect(asked).toEqual([['lesson'], ['risk']]);
+    expect((await handleLesson('Bearer good', JSON.stringify({ diff: 'x', kinds: ['proven'] }), recording)).status).toBe(400);
   });
 
   it('never passes a model error message on', async () => {

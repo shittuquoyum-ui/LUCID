@@ -16,7 +16,7 @@ export const extractJson = (text: string): unknown => {
 export type Parsed<T> = { ok: true; value: T } | { ok: false; problems: string[] };
 
 /** Parse and validate in one go, returning readable problems for a retry. */
-export const parseWith = <T>(schema: z.ZodType<T>, text: string): Parsed<T> => {
+export const parseWith = <T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, text: string): Parsed<T> => {
   let raw: unknown;
   try {
     raw = extractJson(text);

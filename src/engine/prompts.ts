@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 
-export type PromptName = 'pickConcept' | 'writeLesson' | 'reviewLesson';
+export type PromptName = 'pickConcept' | 'writeLesson' | 'reviewLesson' | 'writeWarning' | 'reviewWarning';
 
 const provided: Partial<Record<PromptName, string>> = {};
 

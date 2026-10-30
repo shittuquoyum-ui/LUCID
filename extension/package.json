@@ -1,8 +1,8 @@
 {
   "name": "lucid",
   "displayName": "Lucid",
-  "description": "After each commit, a plain-English lesson about what your change does.",
-  "version": "0.1.0",
+  "description": "Flags database leaks and other risks in each commit before you ship them, and explains your changes in plain English.",
+  "version": "0.2.0",
   "publisher": "lucid-dev",
   "repository": {
     "type": "git",
@@ -63,6 +63,19 @@
           "type": "boolean",
           "default": true,
           "description": "Explain each new commit automatically, in the background."
+        },
+        "lucid.lessons": {
+          "type": "string",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "enumDescriptions": [
+            "Warnings about risky changes, and lessons about the rest.",
+            "Only warnings about risky changes pop up."
+          ],
+          "default": "on",
+          "description": "Lessons about changes that carry no risk. Warnings always pop up."
         },
         "lucid.useOwnKeys": {
           "type": "boolean",

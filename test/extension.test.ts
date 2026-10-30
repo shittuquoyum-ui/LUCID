@@ -96,6 +96,10 @@ describe('plainReason', () => {
 
 describe('lesson card in a webview', () => {
   const card: LessonCard = {
+    kind: 'lesson',
+    category: null,
+    severity: null,
+    evidence: null,
     title: 'Your <script>alert(1)</script> app',
     story: ['A story with `<b>code</b>` in it.', 'Second paragraph & more.'],
     keyLine: { file: 'src/a.ts', line: 3, endLine: 3, code: 'if (a < b) return "</script>";', link: null, plainWords: 'Compare "a" and b.' },
@@ -165,6 +169,17 @@ describe('askServer', () => {
     expect(sent!.body.title).toBe('Add RLS');
     expect(sent!.body.diff).toContain('using (auth.uid() = user_id);');
     for (const never of ['sk-live', 'SUPABASE_SERVICE_ROLE_KEY', '.env.local', 'package-lock.json', 'logo.png']) expect(sent!.body.diff).not.toContain(never);
+  });
+
+  it('asks for warnings and lessons, or warnings only when lessons are off', async () => {
+    const kinds: unknown[] = [];
+    const fake = (async (_url: string, init: RequestInit) => {
+      kinds.push(JSON.parse(String(init.body)).kinds);
+      return new Response(JSON.stringify({ outcome: 'nothing-to-teach', card: null, report: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    await askServer('https://x', 't', RLS_DIFF, null, fake);
+    await askServer('https://x', 't', RLS_DIFF, null, fake, ['risk']);
+    expect(kinds).toEqual([['risk', 'lesson'], ['risk']]);
   });
 
   it('sends nothing when filtering leaves nothing', async () => {

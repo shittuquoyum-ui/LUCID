@@ -55,7 +55,12 @@ export const reportLines = (report: LucidReport): string[] => {
   ];
   if (report.skippedFiles.length) lines.push(`skipped: ${report.skippedFiles.map((s) => `${s.path} (${s.reason})`).join(', ')}`);
   if (report.redactedLines) lines.push(`hidden as possible secrets: ${report.redactedLines} line(s)`);
-  if (report.pick) lines.push(`concept: ${report.pick.concept} (teach=${report.pick.teach}). ${report.pick.why}`);
+  if (report.signals.length) lines.push(`risk signals: ${report.signals.map((s) => `${s.id} (${s.file}:${s.line})`).join(', ')}`);
+  if (report.pick) {
+    const p = report.pick;
+    const risk = p.kind === 'risk' ? `, ${p.category}, ${p.severity}` : '';
+    lines.push(`kind: ${p.kind}${risk}. concept: ${p.concept}. ${p.why}`);
+  }
   for (const a of report.attempts) {
     lines.push(`${a.step} via ${a.provider}: ${a.problems.length ? a.problems.join(' | ') : 'ok'}`);
   }
@@ -71,6 +76,11 @@ export const reportLines = (report: LucidReport): string[] => {
     const r = report.review;
     const why = [r.claimsTrue ? null : 'false claims', r.quizOk ? null : 'quiz answered by the story'].filter((x) => x !== null);
     lines.push(`fact check: ${r.passed ? 'passed' : `failed (${why.join(', ') || 'no verdict'})`}`);
+  }
+  if (report.warningReview) {
+    const r = report.warningReview;
+    const why = [r.riskShown ? null : 'risk not shown in the change', r.claimsTrue ? null : 'false claims', r.fixOk ? null : 'wrong fix'].filter((x) => x !== null);
+    lines.push(`fact check (warning): ${r.passed ? 'passed' : `failed (${why.join(', ') || 'no verdict'})`}, severity ${r.severity}`);
   }
   const calls = (step: Attempt['step']) => report.attempts.filter((a) => a.step === step).length;
   if (report.attempts.length) lines.push(`model calls: pick ${calls('pick')}, write ${calls('write')}, review ${calls('review')}`);

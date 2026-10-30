@@ -10,15 +10,22 @@
  *
  * Its answer is untrusted input like any other: it must parse and pass the
  * schema. An answer that never does counts as a failed check.
+ *
+ * Warning cards get the same treatment with their own questions: is the risk
+ * really in the changed lines, is every consequence a possibility tied to
+ * them, is the severity fair, is the fix prompt correct? A risk that depends
+ * on code the change does not show is no warning: false alarms are worse
+ * than silence.
  */
 import { z } from 'zod';
 import type { DiffFile } from './diff';
-import { fakeReview } from './fake';
+import { fakeReview, fakeWarningReview } from './fake';
 import { parseWith } from './json';
 import { LISTING_LEGEND, renderListing, renderVersions } from './listing';
 import { callModel, type Effort, type Provider, type Usage } from './model';
 import { prompt } from './prompts';
-import type { CheckedLesson } from './quoteCheck';
+import type { CheckedLesson, CheckedRisk } from './quoteCheck';
+import { SEVERITIES, type Severity } from './schemas';
 import type { Attempt } from './steps';
 
 export const ReviewSchema = z.object({
@@ -91,16 +98,9 @@ export interface ReviewOptions {
   effort?: Effort;
 }
 
-export const reviewLesson = async (
-  files: DiffFile[],
-  title: string | null,
-  lesson: CheckedLesson,
-  provider: Provider,
-  options: ReviewOptions = {},
-): Promise<ReviewResult> => {
-  const effort = options.effort ?? reviewEffort();
-  const system = prompt('reviewLesson');
-  const base = [
+/** The change as the reviewer reads it: BEFORE and AFTER, then the diff, then the card. */
+const reviewInput = (files: DiffFile[], title: string | null, cardLabel: string, card: object): string =>
+  [
     title ? `Change title: ${title}` : null,
     'THE CHANGE AS BEFORE AND AFTER',
     renderVersions(files),
@@ -110,34 +110,122 @@ export const reviewLesson = async (
     '',
     renderListing(files),
     '',
-    'THE LESSON',
-    JSON.stringify(lessonForReview(lesson), null, 2),
+    cardLabel,
+    JSON.stringify(card, null, 2),
   ]
     .filter((x) => x !== null)
     .join('\n');
 
+/** Ask the reviewer, with one retry for an answer that does not parse. Null when it never does. */
+const askReviewer = async <R, C extends { problems: string[] }>(
+  schema: z.ZodType<R, z.ZodTypeDef, unknown>,
+  toCheck: (r: R) => C,
+  system: string,
+  base: string,
+  provider: Provider,
+  options: ReviewOptions,
+  fake: () => R,
+): Promise<{ check: C | null; attempts: Attempt[] }> => {
+  const effort = options.effort ?? reviewEffort();
   const attempts: Attempt[] = [];
   let problems: string[] = [];
   for (let round = 0; round < 2; round += 1) {
     const note = problems.length
       ? `\n\nYOUR PREVIOUS ANSWER WAS REJECTED. Fix these problems and return the complete JSON again:\n${problems.map((p) => `- ${p}`).join('\n')}`
       : '';
-    const text = await callModel(
-      provider,
-      { system, user: base + note, effort, maxTokens: 8000, usage: options.usage },
-      () => JSON.stringify(fakeReview()),
-    );
-    const parsed = parseWith(ReviewSchema, text);
+    const text = await callModel(provider, { system, user: base + note, effort, maxTokens: 8000, usage: options.usage }, () => JSON.stringify(fake()));
+    const parsed = parseWith(schema, text);
     if (parsed.ok) {
-      const review = toReviewCheck(parsed.value);
-      attempts.push({ step: 'review', provider, problems: review.problems });
-      return { review, attempts };
+      const check = toCheck(parsed.value);
+      attempts.push({ step: 'review', provider, problems: check.problems });
+      return { check, attempts };
     }
     problems = parsed.problems;
     attempts.push({ step: 'review', provider, problems });
   }
+  return { check: null, attempts };
+};
+
+const NO_VERDICT = 'fact check could not run: the checker never returned valid JSON';
+
+export const reviewLesson = async (
+  files: DiffFile[],
+  title: string | null,
+  lesson: CheckedLesson,
+  provider: Provider,
+  options: ReviewOptions = {},
+): Promise<ReviewResult> => {
+  const base = reviewInput(files, title, 'THE LESSON', lessonForReview(lesson));
+  const { check, attempts } = await askReviewer(ReviewSchema, toReviewCheck, prompt('reviewLesson'), base, provider, options, fakeReview);
+  return { review: check ?? { passed: false, claimsTrue: false, quizOk: false, problems: [NO_VERDICT] }, attempts };
+};
+
+// --- warning cards -------------------------------------------------------------
+
+export const WarningReviewSchema = z.object({
+  /** The risk is visible in the changed lines themselves, without guessing about code that is not shown. */
+  riskShown: z.boolean(),
+  wrongClaims: z.array(z.string().min(1).max(400)).max(8),
+  /** The severity the reviewer would give. It replaces the picker's. */
+  severity: z.enum(SEVERITIES),
+  fixPromptOk: z.boolean(),
+  fixProblem: z.string().max(400),
+});
+
+export type WarningReview = z.infer<typeof WarningReviewSchema>;
+
+export interface WarningReviewCheck {
+  passed: boolean;
+  riskShown: boolean;
+  /** Title, consequences, who is affected, plainWords and the idea match the change, as possibilities. */
+  claimsTrue: boolean;
+  fixOk: boolean;
+  severity: Severity;
+  problems: string[];
+}
+
+export const toWarningReviewCheck = (r: WarningReview): WarningReviewCheck => {
+  const claimsTrue = r.wrongClaims.length === 0;
+  const problems = [
+    ...(r.riskShown ? [] : ['fact check: the risk is not shown in the changed lines themselves; it depends on code that is not in this change, so there is no warning']),
+    ...r.wrongClaims.map((c) => `fact check found a false or unprovable claim: ${clause(c)}. Say only what the quoted lines could let happen`),
+    ...(r.fixPromptOk ? [] : [`fact check: the fix prompt is wrong or unsafe${clause(r.fixProblem) ? ` (${clause(r.fixProblem)})` : ''}. Write a fix that is correct for this exact code`]),
+  ];
+  return { passed: r.riskShown && claimsTrue && r.fixPromptOk, riskShown: r.riskShown, claimsTrue, fixOk: r.fixPromptOk, severity: r.severity, problems };
+};
+
+export interface WarningReviewResult {
+  review: WarningReviewCheck;
+  attempts: Attempt[];
+}
+
+/** What the reviewer needs from the warning: every word the builder reads and the fix they would paste. */
+const warningForReview = (warning: CheckedRisk, risk: { category: string; severity: Severity }) => ({
+  category: risk.category,
+  severity: risk.severity,
+  title: warning.title,
+  whatCouldHappen: warning.whatCouldHappen,
+  whoIsAffected: warning.whoIsAffected,
+  quotes: warning.quotes.map((q) => ({ file: q.file, line: q.line, code: q.code })),
+  plainWords: warning.plainWords,
+  fixPrompt: warning.fixPrompt,
+  ideaBehindIt: warning.ideaBehindIt,
+});
+
+export const reviewWarning = async (
+  files: DiffFile[],
+  title: string | null,
+  warning: CheckedRisk,
+  risk: { category: string; severity: Severity },
+  provider: Provider,
+  options: ReviewOptions = {},
+): Promise<WarningReviewResult> => {
+  const base = reviewInput(files, title, 'THE WARNING', warningForReview(warning, risk));
+  const { check, attempts } = await askReviewer(WarningReviewSchema, toWarningReviewCheck, prompt('reviewWarning'), base, provider, options, () =>
+    fakeWarningReview(risk.severity),
+  );
   return {
-    review: { passed: false, claimsTrue: false, quizOk: false, problems: ['fact check could not run: the checker never returned valid JSON'] },
+    review: check ?? { passed: false, riskShown: false, claimsTrue: false, fixOk: false, severity: risk.severity, problems: [NO_VERDICT] },
     attempts,
   };
 };

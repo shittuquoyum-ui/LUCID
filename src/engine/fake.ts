@@ -4,8 +4,10 @@
  * Fake lessons say so in their title; they are never mistaken for the product.
  */
 import { changedCount, shownLine, type DiffFile, type DiffLine } from './diff';
-import type { Review } from './review';
-import type { ConceptPick, Lesson } from './schemas';
+import { HIDDEN_TEXT } from './filter';
+import type { Review, WarningReview } from './review';
+import type { ConceptPick, Lesson, Risk, Severity } from './schemas';
+import type { RiskCategory, Signal } from './signals';
 
 const GUESSES: [RegExp, string][] = [
   [/row level security|create policy|auth\.uid\(\)/i, 'row-level-security'],
@@ -29,21 +31,60 @@ const firstQuotable = (files: DiffFile[]): { file: DiffFile; line: DiffLine } | 
   return null;
 };
 
-export const fakePick = (files: DiffFile[]): ConceptPick => {
+/** The fake picker trusts the first quotable risk signal; otherwise it guesses a lesson. Same shape as a real answer. */
+export const fakePick = (files: DiffFile[], signals: Signal[] = []): object => {
+  const risk = signals.find((s) => s.code !== HIDDEN_TEXT);
+  if (risk) {
+    return {
+      kind: 'risk',
+      concept: CONCEPT_FOR[risk.category],
+      category: risk.category,
+      severity: 'medium',
+      why: `Fake model: trusted the "${risk.id}" signal.`,
+      evidence: [{ file: risk.file, line: risk.line, status: risk.status, code: risk.code }],
+    };
+  }
   const spot = firstQuotable(files);
-  if (!spot) return { teach: false, concept: 'none', why: 'Fake model: no added line worth quoting.', evidence: [] };
+  if (!spot) return { kind: 'none', concept: 'none', why: 'Fake model: no added line worth quoting.', evidence: [] };
   const all = files.flatMap((f) => f.lines.filter((l) => l.status === 'added').map((l) => l.text)).join('\n');
-  const concept = (GUESSES.find(([re]) => re.test(all))?.[1] ?? 'error-handling') as ConceptPick['concept'];
+  const concept = GUESSES.find(([re]) => re.test(all))?.[1] ?? 'error-handling';
   return {
-    teach: true,
+    kind: 'lesson',
     concept,
     why: `Fake model: guessed "${concept}" from keywords in the added lines.`,
     evidence: [{ file: spot.file.path, line: shownLine(spot.line), status: 'added', code: spot.line.text }],
   };
 };
 
+const CONCEPT_FOR: Record<RiskCategory, string> = {
+  'data-exposure': 'row-level-security',
+  secrets: 'secrets-and-env',
+  auth: 'authentication',
+  ownership: 'authorization',
+  payments: 'input-validation',
+  other: 'api-routes',
+};
+
 /** The fake fact checker always passes; it never read anything. */
 export const fakeReview = (): Review => ({ claimsTrue: true, wrongClaims: [], quizAnsweredByStory: false, quizProblem: '' });
+
+/** The fake warning check passes too, keeping the picker's severity. */
+export const fakeWarningReview = (severity: Severity): WarningReview => ({ riskShown: true, wrongClaims: [], severity, fixPromptOk: true, fixProblem: '' });
+
+/** Written to pass the plain-English checker, so fake runs exercise the happy path. */
+export const fakeWarning = (pick: ConceptPick): Risk => {
+  const first = pick.evidence[0]!;
+  return {
+    evidence: 'warning',
+    title: '[fake model] A real warning would go here',
+    whatCouldHappen: 'A real warning would say what this line could let happen.',
+    whoIsAffected: 'The people a real warning would name.',
+    quotes: [{ file: first.file, line: first.line, role: first.status === 'removed' ? 'removed' : 'shows', code: first.code, note: 'A real line from this change.' }],
+    plainWords: 'A real warning would say what this line does in everyday words.',
+    fixPrompt: `Look at ${first.file} line ${first.line} and explain what it does.`,
+    ideaBehindIt: 'A real warning would teach the idea behind the risk. It would use one everyday comparison.',
+  };
+};
 
 /** Written to pass the plain-English checker, so fake runs exercise the happy path. */
 export const fakeLesson = (pick: ConceptPick): Lesson => {

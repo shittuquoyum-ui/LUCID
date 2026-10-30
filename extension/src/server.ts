@@ -4,16 +4,16 @@
  * turned into either a result or one plain sentence. No editor API here, so
  * it can be tested directly.
  */
-import type { LessonCard } from '../../src/engine/card';
+import type { Card } from '../../src/engine/card';
 import { toUnifiedDiff, parseDiff } from '../../src/engine/diff';
 import { filterDiff } from '../../src/engine/filter';
-import type { LucidReport } from '../../src/engine/lucid';
+import type { CardKind, LucidReport } from '../../src/engine/lucid';
 import { plainReason } from './messages';
 
 export const DEFAULT_SERVER_URL = 'https://shittuquoyum-ui--lucid-server.us-east.modal.run';
 
 export type ServerAnswer =
-  | { kind: 'done'; outcome: LucidReport['outcome']; card: LessonCard | null; report: string[] }
+  | { kind: 'done'; outcome: LucidReport['outcome']; card: Card | null; report: string[] }
   /** Nothing left to send once the diff was filtered (only lockfiles, .env files, binaries...). */
   | { kind: 'nothing-to-send' }
   | { kind: 'problem'; message: string; action: 'sign-in' | null };
@@ -27,6 +27,8 @@ export const askServer = async (
   diffText: string,
   title: string | null,
   fetchImpl: typeof fetch = fetch,
+  /** The cards to write: both, or only warnings when lessons are off. */
+  kinds: CardKind[] = ['risk', 'lesson'],
 ): Promise<ServerAnswer> => {
   const diff = filteredDiff(diffText);
   if (!diff) return { kind: 'nothing-to-send' };
@@ -38,7 +40,7 @@ export const askServer = async (
     res = await fetchImpl(`${serverUrl.replace(/\/+$/, '')}/lesson`, {
       method: 'POST',
       headers: { authorization: `Bearer ${githubToken}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ diff, title }),
+      body: JSON.stringify({ diff, title, kinds }),
       signal: AbortSignal.timeout(10 * 60_000),
     });
   } catch {
@@ -47,7 +49,7 @@ export const askServer = async (
 
   const body = (await res.json().catch(() => ({}))) as {
     outcome?: LucidReport['outcome'];
-    card?: LessonCard | null;
+    card?: Card | null;
     report?: string[];
     error?: string;
     kind?: string;

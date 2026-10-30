@@ -13,7 +13,7 @@
  *     lines of the diff. 'Validation failed' is what people see, not jargon;
  *     a quoted 'object' that the change never shows still counts.
  */
-import type { Lesson } from './schemas';
+import type { Lesson, Risk } from './schemas';
 
 export const TITLE_MAX = 60;
 export const SENTENCE_MAX_WORDS = 20;
@@ -57,14 +57,13 @@ const PROSE_QUOTES = [/(?<![\p{L}\p{N}])['‘]((?:[^'‘’\n]|['’](?=[\p{L}])
 const quotedIn = (text: string, patterns: RegExp[]): string[] => patterns.flatMap((re) => [...text.matchAll(re)].map((m) => m[1]!));
 
 /**
- * Words the app shows to its users: quoted text from the lesson or its quoted
- * code, kept only when the change itself contains it.
+ * Words the app shows to its users: quoted text from the card's prose or its
+ * quoted code, kept only when the change itself contains it.
  */
-const appText = (lesson: Lesson, changedLines: string[]): string[] => {
+const appText = (prose: string[], quotes: { code: string }[], changedLines: string[]): string[] => {
   const changed = changedLines.join('\n').toLowerCase();
-  const prose = [lesson.title, ...lesson.story, lesson.plainWords, lesson.question, ...Object.values(lesson.options), ...Object.values(lesson.feedback)];
   const candidates = [
-    ...quotedIn(lesson.quotes.map((q) => q.code).join('\n'), CODE_QUOTES),
+    ...quotedIn(quotes.map((q) => q.code).join('\n'), CODE_QUOTES),
     ...prose.flatMap((t) => quotedIn(t, PROSE_QUOTES)),
   ];
   return [...new Set(candidates)].filter((t) => t.trim().length >= 4 && /[A-Za-z]/.test(t) && changed.includes(t.toLowerCase()));
@@ -94,20 +93,14 @@ const opening = (sentence: string): string => {
 
 const normalize = (s: string): string => s.toLowerCase().replace(/\s+/g, ' ').trim();
 
-/** `changedLines`: the text of the diff's added and removed lines, for the on-screen-text exemption. */
-export const checkPlainEnglish = (lesson: Lesson, changedLines: string[] = []): PlainCheck => {
+interface Field {
+  label: string;
+  text: string;
+}
+
+/** The checks every card shares: words, code names, sentence length, the title and plainWords. */
+const checkFields = (fields: Field[], title: string, plainWords: string, exempt: string[]): string[] => {
   const problems: string[] = [];
-  const exempt = appText(lesson, changedLines);
-
-  const fields: { label: string; text: string }[] = [
-    { label: 'title', text: lesson.title },
-    ...lesson.story.map((text, i) => ({ label: `story paragraph ${i + 1}`, text })),
-    { label: 'plainWords', text: lesson.plainWords },
-    { label: 'question', text: lesson.question },
-    ...(['A', 'B', 'C'] as const).map((l) => ({ label: `option ${l}`, text: lesson.options[l] })),
-    ...(['A', 'B', 'C'] as const).map((l) => ({ label: `feedback ${l}`, text: lesson.feedback[l] })),
-  ];
-
   for (const { label, text } of fields) {
     const plain = readable(text, exempt);
 
@@ -133,7 +126,7 @@ export const checkPlainEnglish = (lesson: Lesson, changedLines: string[] = []): 
   }
 
   // plainWords should sound like something a person says out loud.
-  const said = readable(lesson.plainWords, exempt);
+  const said = readable(plainWords, exempt);
   const saidWords = wordCount(said);
   if (saidWords > PLAIN_WORDS_MAX_WORDS) {
     problems.push(`plainWords has ${saidWords} words; say it in ${PLAIN_WORDS_MAX_WORDS} words or fewer`);
@@ -145,15 +138,32 @@ export const checkPlainEnglish = (lesson: Lesson, changedLines: string[] = []): 
   const glued = said.match(HYPHEN_GLUED);
   if (glued) problems.push(`plainWords glues words with hyphens ("${glued[0]}"); write them as a normal sentence`);
 
-  if (lesson.title.length > TITLE_MAX) {
-    problems.push(`title is ${lesson.title.length} characters; make it ${TITLE_MAX} or fewer`);
+  if (title.length > TITLE_MAX) {
+    problems.push(`title is ${title.length} characters; make it ${TITLE_MAX} or fewer`);
   }
+  return problems;
+};
+
+const sentenceCount = (text: string, exempt: string[]): number => sentencesOf(readable(text, exempt)).length;
+
+/** `changedLines`: the text of the diff's added and removed lines, for the on-screen-text exemption. */
+export const checkPlainEnglish = (lesson: Lesson, changedLines: string[] = []): PlainCheck => {
+  const fields: Field[] = [
+    { label: 'title', text: lesson.title },
+    ...lesson.story.map((text, i) => ({ label: `story paragraph ${i + 1}`, text })),
+    { label: 'plainWords', text: lesson.plainWords },
+    { label: 'question', text: lesson.question },
+    ...(['A', 'B', 'C'] as const).map((l) => ({ label: `option ${l}`, text: lesson.options[l] })),
+    ...(['A', 'B', 'C'] as const).map((l) => ({ label: `feedback ${l}`, text: lesson.feedback[l] })),
+  ];
+  const exempt = appText(fields.map((f) => f.text), lesson.quotes, changedLines);
+  const problems = checkFields(fields, lesson.title, lesson.plainWords, exempt);
 
   if (lesson.story.length > STORY_MAX_PARAGRAPHS) {
     problems.push(`story has ${lesson.story.length} paragraphs; use 2 to ${STORY_MAX_PARAGRAPHS}`);
   }
   lesson.story.forEach((paragraph, i) => {
-    const n = sentencesOf(readable(paragraph, exempt)).length;
+    const n = sentenceCount(paragraph, exempt);
     if (n > PARAGRAPH_MAX_SENTENCES) {
       problems.push(`story paragraph ${i + 1} has ${n} sentences; use ${PARAGRAPH_MAX_SENTENCES} or fewer`);
     }
@@ -163,6 +173,50 @@ export const checkPlainEnglish = (lesson: Lesson, changedLines: string[] = []): 
   const right = normalize(lesson.options[lesson.answer]).replace(/[.!?]+$/, '');
   if (right.split(' ').length >= 2 && normalize(lesson.story.join(' ')).includes(right)) {
     problems.push(`the right answer (${lesson.answer}) appears word for word in the story; ask about a new situation the story does not already answer`);
+  }
+
+  return { passed: problems.length === 0, problems };
+};
+
+// --- warning cards -------------------------------------------------------------
+
+/** Lucid never says a change is safe: silence is not a safety claim, and nothing is proven yet. */
+export const SAFETY_CLAIM = /\b(safe|safely|safer|safest|secure|secured|securely|proven)\b/i;
+const POSSIBILITY = /\b(could|may|might)\b/i;
+export const WHAT_COULD_HAPPEN_MAX_SENTENCES = 3;
+export const IDEA_MAX_SENTENCES = 3;
+
+/**
+ * The warning card: the same word rules as a lesson on everything the reader
+ * reads, except fixPrompt, which is written for their AI tool and may name
+ * code. No field, fixPrompt included, may call anything safe, secure or proven.
+ */
+export const checkPlainWarning = (risk: Risk, changedLines: string[] = []): PlainCheck => {
+  const fields: Field[] = [
+    { label: 'title', text: risk.title },
+    { label: 'whatCouldHappen', text: risk.whatCouldHappen },
+    { label: 'whoIsAffected', text: risk.whoIsAffected },
+    { label: 'plainWords', text: risk.plainWords },
+    { label: 'ideaBehindIt', text: risk.ideaBehindIt },
+  ];
+  const exempt = appText(fields.map((f) => f.text), risk.quotes, changedLines);
+  const problems = checkFields(fields, risk.title, risk.plainWords, exempt);
+
+  const could = sentencesOf(readable(risk.whatCouldHappen, exempt));
+  if (could.length > WHAT_COULD_HAPPEN_MAX_SENTENCES) {
+    problems.push(`whatCouldHappen has ${could.length} sentences; use 1 to ${WHAT_COULD_HAPPEN_MAX_SENTENCES}`);
+  }
+  for (const s of could) {
+    if (!POSSIBILITY.test(s)) problems.push(`whatCouldHappen says "${opening(s)}" as a fact; phrase it as a possibility ("could", "may")`);
+  }
+  const who = sentenceCount(risk.whoIsAffected, exempt);
+  if (who > 1) problems.push(`whoIsAffected has ${who} sentences; use one`);
+  const idea = sentenceCount(risk.ideaBehindIt, exempt);
+  if (idea > IDEA_MAX_SENTENCES) problems.push(`ideaBehindIt has ${idea} sentences; use 2 or ${IDEA_MAX_SENTENCES}`);
+
+  for (const { label, text } of [...fields, { label: 'fixPrompt', text: risk.fixPrompt }]) {
+    const claim = text.match(SAFETY_CLAIM);
+    if (claim) problems.push(`${label} says "${claim[0]}"; never call anything safe, secure or proven, only say what the change could do`);
   }
 
   return { passed: problems.length === 0, problems };

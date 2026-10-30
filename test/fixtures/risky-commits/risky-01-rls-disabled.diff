@@ -1,0 +1,7 @@
+diff --git a/supabase/migrations/20261030090000_profiles_open.sql b/supabase/migrations/20261030090000_profiles_open.sql
+new file mode 100644
+--- /dev/null
++++ b/supabase/migrations/20261030090000_profiles_open.sql
+@@ -0,0 +1,2 @@
++-- The dashboard could not load profiles, so turn the lock off for now
++alter table public.profiles disable row level security;

@@ -8,7 +8,7 @@
  */
 import { z } from 'zod';
 import { toCard } from '../engine/card';
-import type { LucidReport } from '../engine/lucid';
+import type { CardKind, LucidReport } from '../engine/lucid';
 import { reportLines } from '../terminal';
 import type { GitHubUser } from './github';
 import type { DailyLimits } from './limits';
@@ -19,13 +19,18 @@ export const LessonRequestSchema = z.object({
   /** The diff, already filtered on the builder's machine. The server filters it again. */
   diff: z.string().min(1).max(MAX_BODY_BYTES),
   title: z.string().max(300).nullish(),
+  /**
+   * The cards the extension can show and wants. Extensions before warning
+   * cards send nothing and get lessons only; ['risk'] means lessons are off.
+   */
+  kinds: z.array(z.enum(['risk', 'lesson'])).min(1).max(2).optional(),
 });
 
 export interface ServerDeps {
   enabled: () => boolean;
   verify: (token: string) => Promise<GitHubUser | null>;
   limits: DailyLimits;
-  runLesson: (input: { diffText: string; title: string | null }) => Promise<LucidReport>;
+  runLesson: (input: { diffText: string; title: string | null; kinds: CardKind[] }) => Promise<LucidReport>;
 }
 
 export interface Reply {
@@ -59,7 +64,7 @@ export const handleLesson = async (authorization: string | undefined, rawBody: s
   if (!limit.ok) return { status: 429, body: { error: limit.reason } };
 
   try {
-    const report = await deps.runLesson({ diffText: input.diff, title: input.title ?? null });
+    const report = await deps.runLesson({ diffText: input.diff, title: input.title ?? null, kinds: input.kinds ?? ['lesson'] });
     return { status: 200, body: { outcome: report.outcome, card: toCard(report), report: reportLines(report) } };
   } catch (err) {
     const e = err as { name?: string; status?: number };

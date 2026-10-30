@@ -14,9 +14,11 @@ import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 import pickConceptPrompt from '../../src/prompts/pickConcept.md';
 import reviewLessonPrompt from '../../src/prompts/reviewLesson.md';
+import reviewWarningPrompt from '../../src/prompts/reviewWarning.md';
 import writeLessonPrompt from '../../src/prompts/writeLesson.md';
-import { toCard, type LessonCard } from '../../src/engine/card';
-import { runLucid, type LucidStep } from '../../src/engine/lucid';
+import writeWarningPrompt from '../../src/prompts/writeWarning.md';
+import { toCard, type Card } from '../../src/engine/card';
+import { runLucid, type CardKind, type LucidStep } from '../../src/engine/lucid';
 import { useApiKeys } from '../../src/engine/model';
 import { providePrompts } from '../../src/engine/prompts';
 import { reportLines } from '../../src/terminal';
@@ -32,19 +34,30 @@ const GITHUB_SCOPES = ['read:user'];
 const NO_GITHUB = "This editor has no GitHub sign-in Lucid can use. Set your own API keys instead.";
 
 const settings = () => vscode.workspace.getConfiguration('lucid');
+/** lucid.lessons: "on" (default) or "off", which leaves only warnings. */
+const lessonsOn = () => settings().get<string>('lessons', 'on') !== 'off';
+const wantedKinds = (): CardKind[] => (lessonsOn() ? ['risk', 'lesson'] : ['risk']);
 
 const STEP_TEXT: Record<LucidStep | 'reading' | 'server', string> = {
   reading: 'Reading the commit',
-  server: "Writing and checking the lesson on Lucid's server",
-  picking: 'Picking the one idea worth explaining',
-  writing: 'Writing the lesson',
-  'fact-checking': 'Fact-checking the lesson',
+  server: "Checking your change on Lucid's server",
+  picking: 'Looking for risks, and the one idea worth explaining',
+  writing: 'Writing the card',
+  'fact-checking': 'Fact-checking the card',
 };
 
 export function activate(context: vscode.ExtensionContext): void {
-  providePrompts({ pickConcept: pickConceptPrompt, writeLesson: writeLessonPrompt, reviewLesson: reviewLessonPrompt });
+  providePrompts({
+    pickConcept: pickConceptPrompt,
+    writeLesson: writeLessonPrompt,
+    reviewLesson: reviewLessonPrompt,
+    writeWarning: writeWarningPrompt,
+    reviewWarning: reviewWarningPrompt,
+  });
 
-  let lastCard: LessonCard | undefined;
+  let lastCard: Card | undefined;
+  /** The card the panel is showing; Copy uses its fix prompt, never text sent back by the page. */
+  let shownCard: Card | undefined;
   let panel: vscode.WebviewPanel | undefined;
   let git: GitApi | undefined;
 
@@ -86,9 +99,10 @@ export function activate(context: vscode.ExtensionContext): void {
     void vscode.window.showInformationMessage((await readKeys()) ? 'Lucid: keys saved.' : 'Lucid: a key is still missing. Run "Lucid: Set API keys" again.');
   };
 
-  // --- the lesson panel -----------------------------------------------------
-  const showCard = (card: LessonCard) => {
+  // --- the card panel ---------------------------------------------------------
+  const showCard = (card: Card) => {
     const html = renderCardHtml(card, { webview: { nonce: randomBytes(16).toString('hex') } });
+    shownCard = card;
     if (panel) {
       panel.webview.html = html;
       panel.reveal(vscode.ViewColumn.Beside, true);
@@ -101,6 +115,17 @@ export function activate(context: vscode.ExtensionContext): void {
       { enableScripts: true, enableCommandUris: false, localResourceRoots: [] },
     );
     panel.webview.html = html;
+    const view = panel.webview;
+    // "Copy" on a warning card: the page only asks; the text comes from our own copy of the card.
+    view.onDidReceiveMessage(
+      async (message: { type?: string }) => {
+        if (message?.type !== 'copy-fix' || shownCard?.kind !== 'risk') return;
+        await vscode.env.clipboard.writeText(shownCard.fixPrompt);
+        void view.postMessage({ type: 'copied' });
+      },
+      null,
+      context.subscriptions,
+    );
     panel.onDidDispose(() => (panel = undefined), null, context.subscriptions);
   };
 
@@ -128,18 +153,28 @@ export function activate(context: vscode.ExtensionContext): void {
     });
 
   // --- one run --------------------------------------------------------------
-  /** Show what a run produced: a toast for a lesson, a quiet note for nothing, a warning otherwise. */
-  const present = (sha: string, outcome: string, card: LessonCard | null, report: string[]) => {
+  /**
+   * Show what a run produced: a warning toast for a risk, an information toast
+   * for a lesson, a quiet note for nothing. A warning the fact check dropped
+   * stays quiet too: Lucid never says a change is fine, it just says nothing.
+   */
+  const present = (sha: string, outcome: string, card: Card | null, report: string[]) => {
     console.log(`[Lucid] ${sha.slice(0, 7)}\n${report.join('\n')}`);
-    if (card) {
+    if (card?.kind === 'risk') {
+      lastCard = card;
+      void vscode.window.showWarningMessage(`⚠️ Lucid: ${card.title}`, 'Show me', 'Later').then((choice) => {
+        if (choice === 'Show me') showCard(card);
+      });
+    } else if (card) {
+      if (!lessonsOn()) return;
       lastCard = card;
       void vscode.window.showInformationMessage(`Lucid: ${card.title}`, 'Show me', 'Later').then((choice) => {
         if (choice === 'Show me') showCard(card);
       });
-    } else if (outcome === 'nothing-to-teach' || outcome === 'no-readable-files') {
-      vscode.window.setStatusBarMessage('Lucid: nothing worth a lesson in this commit', 8000);
-    } else {
+    } else if (outcome === 'lesson-failed' && lessonsOn()) {
       void vscode.window.showWarningMessage(NO_LESSON);
+    } else {
+      vscode.window.setStatusBarMessage(lessonsOn() ? 'Lucid: nothing to flag or explain in this commit' : 'Lucid: nothing to flag in this commit', 8000);
     }
   };
 
@@ -166,7 +201,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
       if (token) {
         showBusy('server');
-        const answer = await askServer(settings().get<string>('serverUrl', DEFAULT_SERVER_URL) || DEFAULT_SERVER_URL, token, diffText, title);
+        const serverUrl = settings().get<string>('serverUrl', DEFAULT_SERVER_URL) || DEFAULT_SERVER_URL;
+        const answer = await askServer(serverUrl, token, diffText, title, fetch, wantedKinds());
         if (answer.kind === 'done') return present(commit.sha, answer.outcome, answer.card, answer.report);
         if (answer.kind === 'nothing-to-send') return present(commit.sha, 'no-readable-files', null, ['nothing left to send after filtering']);
         console.log(`[Lucid] ${commit.sha.slice(0, 7)} server: ${answer.message}`);
@@ -180,6 +216,7 @@ export function activate(context: vscode.ExtensionContext): void {
         source: null,
         title,
         providers: { pick: 'baseten', write: 'meta' },
+        kinds: wantedKinds(),
         onStep: showBusy,
       });
       present(commit.sha, report.outcome, toCard(report), reportLines(report));

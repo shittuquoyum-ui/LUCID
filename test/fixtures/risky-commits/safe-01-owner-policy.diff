@@ -1,0 +1,10 @@
+diff --git a/supabase/migrations/20261030094000_invoices_rls.sql b/supabase/migrations/20261030094000_invoices_rls.sql
+new file mode 100644
+--- /dev/null
++++ b/supabase/migrations/20261030094000_invoices_rls.sql
+@@ -0,0 +1,5 @@
++alter table public.invoices enable row level security;
++
++create policy "owners read their invoices"
++  on public.invoices for select
++  using (auth.uid() = user_id);

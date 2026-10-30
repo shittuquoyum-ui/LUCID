@@ -59,8 +59,8 @@ const main = () => {
     enabled: () => process.env.LUCID_ENABLED?.trim().toLowerCase() !== 'false',
     verify: devNoAuth ? async () => ({ id: 'dev', login: 'dev' }) : verifyGitHub,
     limits: new DailyLimits({ perUser: PER_USER_DAILY, global: number(process.env.LUCID_DAILY_CAP, 300) }),
-    runLesson: ({ diffText, title }) =>
-      runLucid({ diffText, title, source: null, providers: { pick: 'baseten', write: 'meta' } }),
+    runLesson: ({ diffText, title, kinds }) =>
+      runLucid({ diffText, title, kinds, source: null, providers: { pick: 'baseten', write: 'meta' } }),
   };
   const port = number(process.env.PORT, 8787);
   const host = process.env.HOST ?? '0.0.0.0';

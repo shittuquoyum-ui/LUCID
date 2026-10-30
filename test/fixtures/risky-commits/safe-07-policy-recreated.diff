@@ -1,0 +1,9 @@
+diff --git a/supabase/migrations/20261030095000_notes_policy.sql b/supabase/migrations/20261030095000_notes_policy.sql
+new file mode 100644
+--- /dev/null
++++ b/supabase/migrations/20261030095000_notes_policy.sql
+@@ -0,0 +1,4 @@
++drop policy if exists "owners read their notes" on public.notes;
++create policy "owners read their notes"
++  on public.notes for select
++  using (auth.uid() = user_id);

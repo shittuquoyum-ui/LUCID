@@ -16,7 +16,7 @@
  * (or a concept pick) needs at least one quote that does.
  */
 import { isChange, shownLine, type DiffFile, type DiffLine, type DiffSource, type LineStatus } from './diff';
-import type { Evidence, Lesson, Quote } from './schemas';
+import type { Evidence, Lesson, Quote, Risk } from './schemas';
 
 export type Role = 'shows' | 'removed';
 
@@ -163,6 +163,8 @@ export interface VerifiedQuote extends Quote {
 
 /** A lesson after the quote checker: only verified quotes remain. */
 export type CheckedLesson = Lesson & { quotes: VerifiedQuote[] };
+/** A warning after the quote checker. */
+export type CheckedRisk = Risk & { quotes: VerifiedQuote[] };
 
 export interface FailedItem<T> {
   item: T;

@@ -1,0 +1,15 @@
+diff --git a/src/app/api/admin/users/route.ts b/src/app/api/admin/users/route.ts
+new file mode 100644
+--- /dev/null
++++ b/src/app/api/admin/users/route.ts
+@@ -0,0 +1,10 @@
++import { NextResponse } from 'next/server';
++import { createSupabaseAdminClient } from '@/lib/supabase/admin';
++
++export async function DELETE(request: Request) {
++  const { userId } = await request.json();
++  const supabase = createSupabaseAdminClient();
++  const { error } = await supabase.auth.admin.deleteUser(userId);
++  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
++  return NextResponse.json({ ok: true });
++}

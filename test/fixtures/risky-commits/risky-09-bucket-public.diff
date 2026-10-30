@@ -1,0 +1,7 @@
+diff --git a/supabase/migrations/20261030093000_invoices_bucket.sql b/supabase/migrations/20261030093000_invoices_bucket.sql
+new file mode 100644
+--- /dev/null
++++ b/supabase/migrations/20261030093000_invoices_bucket.sql
+@@ -0,0 +1,2 @@
++-- Invoice links kept expiring, so make the bucket public
++update storage.buckets set public = true where id = 'invoices';
