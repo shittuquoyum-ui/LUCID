@@ -2,7 +2,7 @@
   "name": "lucid",
   "displayName": "Lucid",
   "description": "Flags database leaks and other risks in each commit before you ship them, and explains your changes in plain English.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "lucid-dev",
   "repository": {
     "type": "git",
@@ -76,6 +76,11 @@
           ],
           "default": "on",
           "description": "Lessons about changes that carry no risk. Warnings always pop up."
+        },
+        "lucid.prove": {
+          "type": "boolean",
+          "default": true,
+          "description": "Test warnings about database rules in Lucid's disposable sandbox, with fake users. Sends your database setup files only (migrations, schema.sql), before and after the commit; never data or other code. Needs GitHub sign-in."
         },
         "lucid.useOwnKeys": {
           "type": "boolean",

@@ -66,3 +66,10 @@ export const lastReflogSubject = async (gitPath: string, root: string): Promise<
 
 export const headCommit = async (gitPath: string, root: string): Promise<string> =>
   (await run(gitPath, root, ['rev-parse', 'HEAD'])).trim();
+
+/** Every file path in a commit's tree. */
+export const filesAt = async ({ gitPath, root, sha }: CommitRef): Promise<string[]> =>
+  (await run(gitPath, root, ['ls-tree', '-r', '--name-only', sha])).split('\n').filter(Boolean);
+
+/** One file as it was in a commit. */
+export const fileAt = ({ gitPath, root, sha }: CommitRef, path: string): Promise<string> => run(gitPath, root, ['show', `${sha}:${path}`]);

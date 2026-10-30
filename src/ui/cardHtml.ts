@@ -10,7 +10,7 @@
  *
  * Every piece of card text is escaped. Text in `backticks` is shown as code.
  */
-import type { Card, CardQuote, LessonCard, WarningCard } from '../engine/card';
+import type { Card, CardQuote, LessonCard, ProofView, WarningCard } from '../engine/card';
 import { lineLabel } from '../engine/render';
 
 const LETTERS = ['A', 'B', 'C'] as const;
@@ -114,6 +114,11 @@ main.warning .plain { border-left-color: var(--sev); }
 .badge { padding: 2px 8px; border-radius: 999px; color: var(--sev); background: var(--sev-bg); border: 1px solid var(--sev); }
 .severity { color: var(--sev); }
 .detected { margin: 0 0 6px; font-size: 14px; color: var(--muted); }
+main.proven .badge { color: var(--bg); background: var(--sev); }
+.evidence { margin: 0 0 8px; padding: 4px 14px 2px; border: 1px solid var(--sev); border-radius: 8px; background: var(--sev-bg); }
+.evidence h2 { margin-top: 10px; }
+.statement { font-size: 13px; color: var(--muted); }
+.proof-note { font-size: 14px; color: var(--muted); }
 pre.fix code { white-space: pre-wrap; width: auto; }
 .copy-row { display: flex; gap: 10px; align-items: center; }
 .copy { font: inherit; font-size: 14px; padding: 6px 14px; cursor: pointer; color: var(--bg); background: var(--sev, var(--accent)); border: 0; border-radius: 6px; }
@@ -200,15 +205,19 @@ ${card.kind === 'risk' ? warningBody(card) : lessonBody(card)}
 const SEVERITY_LABEL: Record<WarningCard['severity'], string> = { high: 'High', medium: 'Medium', low: 'Low' };
 
 /**
- * The warning card. The head holds one label per kind of evidence: today
- * always "Warning". Once the sandbox prover exists, a 'proven' card gets a
- * "Proven" label here and an evidence block (what the prover did and saw)
- * under the title; until then nothing on this card may claim proof.
+ * The warning card. The head holds one label per kind of evidence:
+ * "Warning", or "Proven" once the sandbox prover reproduced the leak (only
+ * applyProof sets that). A proven card adds an evidence block under the
+ * title: what happened to the fake users, the exact query, and what a proof
+ * means. A warning the prover could not reproduce gets one quiet line.
  */
-const warningBody = (card: WarningCard): string => `<main class="warning sev-${card.severity}" data-evidence="${escapeHtml(card.evidence)}">
-  <p class="label head"><span class="badge">Warning</span> <span class="severity">${SEVERITY_LABEL[card.severity]}</span></p>
-  <p class="detected">Potential risk detected</p>
+const warningBody = (card: WarningCard): string => {
+  const proven = card.evidence === 'proven' && card.proof;
+  return `<main class="warning sev-${card.severity}${proven ? ' proven' : ''}" data-evidence="${escapeHtml(card.evidence)}">
+  <p class="label head"><span class="badge">${proven ? 'Proven' : 'Warning'}</span> <span class="severity">${SEVERITY_LABEL[card.severity]}</span></p>
+  <p class="detected">${proven ? 'Reproduced with fake users in a disposable sandbox' : 'Potential risk detected'}</p>
   <h1>${prose(card.title)}</h1>
+  ${proven ? evidenceBlock(card.proof!) : ''}${card.proofNote ? `<p class="proof-note">${prose(card.proofNote)}</p>` : ''}
 
   <h2>What could happen</h2>
   <p>${prose(card.whatCouldHappen)}</p>
@@ -232,6 +241,15 @@ const warningBody = (card: WarningCard): string => `<main class="warning sev-${c
 
   <footer>Lucid flags risks it can see in this change. It’s a safety net, not a security audit.</footer>
 </main>`;
+};
+
+/** What the prover did and saw: the plain sentence, the exact query, and what a proof means. */
+const evidenceBlock = (proof: ProofView): string => `<section class="evidence">
+    <h2>What Lucid reproduced</h2>
+    <p>${prose(proof.sentence)}</p>
+    <pre class="code"><code>${escapeHtml(proof.query)}</code></pre>
+    <p class="statement">${prose(proof.statement)}</p>
+  </section>`;
 
 const lessonBody = (card: LessonCard): string => `<main>
   <p class="label">What this change does</p>

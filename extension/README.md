@@ -24,6 +24,15 @@ You never have to ask. Commit, keep working, and the card comes to you. Lucid fl
 
 The **👁 Lucid** button in the status bar reopens your last card. While Lucid is reading, it spins and shows which step it's on.
 
+## When Lucid proves it
+
+For a warning about your database rules (row level security turned off, a rule that lets everyone read, an owner check taken out), Lucid goes one step further while you keep working. It builds your database setup in a disposable sandbox, adds two fake users, Alice and Bob, and tries to reach Alice's rows as a signed-out visitor and as Bob.
+
+- **If it gets through**, the card switches from **Warning** to **Proven** and a second message appears: **⚠️ Lucid proved it: …**. The card shows what happened, for example *"a signed-out visitor read 1 of Alice's private rows from `notes`. Before your commit: blocked. After: leaked."*, and the exact query.
+- **If it doesn't**, the card stays a warning, with one quiet line: *Lucid couldn't reproduce this in its sandbox. That doesn't mean it's safe.*
+
+"Proven" means: reproduced unauthorized access against fake users, using your database rules, in a disposable sandbox. It never means real people's data was exposed. Up to 5 sandbox tests a day.
+
 ## Honest by design
 
 - **Every quote is checked against your code.** If the writer quotes a line that isn't in your change, the line is dropped. If nothing can be verified, you get no card rather than a wrong one.
@@ -34,7 +43,8 @@ The **👁 Lucid** button in the status bar reopens your last card. While Lucid 
 
 - **Filtered on your computer first.** Before anything leaves your machine, Lucid drops `.env` files, key files, lockfiles, build output and images, and masks anything that looks like a password, key or token (`sk_live••••`). The real value never leaves your machine. Only that filtered change is sent.
 - **Through Lucid's server to the AI models.** The filtered change goes to Lucid's server, which filters it again and asks Meta's and Baseten's models to write and check the card.
-- **Nothing is kept.** The server stores no code, no cards and no accounts. GitHub sign-in is only used to count cards (20 per person per day).
+- **For a database-rules warning only: your database setup files.** The `.sql` files in your migrations folders (or `supabase/schemas`, or `schema.sql`), as they were before the commit and after it, with secret values masked, 1 MB at most. Never seed files or any data, never other code. They run only inside a sandbox with no network, which is destroyed after the test.
+- **Nothing is kept.** The server stores no code, no cards, no setup files and no accounts. GitHub sign-in is only used to count cards (20 per person per day) and sandbox tests (5).
 - Secret filtering is a precaution, not a guarantee. Don't commit secrets.
 
 ## Settings
@@ -42,6 +52,7 @@ The **👁 Lucid** button in the status bar reopens your last card. While Lucid 
 | Setting | Default | What it does |
 |---|---|---|
 | `lucid.lessons` | on | Lessons about changes that carry no risk. Set to off and only warnings pop up. |
+| `lucid.prove` | on | Test warnings about database rules in Lucid's sandbox. Sends your database setup files only (migrations, schema.sql), before and after the commit; never data or other code. |
 | `lucid.autoExplain` | on | Explain each new commit automatically. Turn off to only use **Lucid: Explain my last commit**. |
 | `lucid.useOwnKeys` | off | Use your own Meta and Baseten keys (**Lucid: Set API keys**) instead of Lucid's server. Your filtered change then goes straight to Meta and Baseten. |
 | `lucid.serverUrl` | Lucid's server | Where cards are written when you're signed in with GitHub. |

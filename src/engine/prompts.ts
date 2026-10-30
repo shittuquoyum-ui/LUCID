@@ -5,11 +5,20 @@
  */
 import { readFileSync } from 'node:fs';
 
-export type PromptName = 'pickConcept' | 'writeLesson' | 'reviewLesson' | 'writeWarning' | 'reviewWarning';
+export type PromptName =
+  | 'pickConcept'
+  | 'writeLesson'
+  | 'reviewLesson'
+  | 'writeWarning'
+  | 'reviewWarning'
+  | 'attackDatabase'
+  | 'judgePrivacy'
+  | 'seedTables';
 
 const provided: Partial<Record<PromptName, string>> = {};
 
-export const providePrompts = (texts: Record<PromptName, string>): void => {
+/** The extension hands over the prompts it uses; the prover's run on the server only. */
+export const providePrompts = (texts: Partial<Record<PromptName, string>>): void => {
   Object.assign(provided, texts);
 };
 

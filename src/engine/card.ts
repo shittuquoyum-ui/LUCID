@@ -9,6 +9,7 @@
 import type { LucidReport } from './lucid';
 import type { Letter } from './quickCheck';
 import type { VerifiedQuote } from './quoteCheck';
+import { PROOF_STATEMENT, type ProofResult } from '../prover/result';
 import type { Severity } from './schemas';
 import { RULE_SEVERITY } from './severity';
 import type { RiskCategory } from './signals';
@@ -71,9 +72,72 @@ export interface WarningCard {
   ideaBehindIt: string;
   concept: string;
   checks: CardChecks;
+  /** What the prover reproduced; only on a 'proven' card. */
+  proof?: ProofView;
+  /** The quiet line when the prover tried and could not reproduce it. */
+  proofNote?: string;
+}
+
+export interface ProofView {
+  /** The one statement every proof stands on. */
+  statement: string;
+  /** What happened, in plain words, with before and after. */
+  sentence: string;
+  query: string;
+  table: string;
+  role: 'anon' | 'bob';
+  action: 'read' | 'update' | 'delete';
+  rows: number;
+  before: ProofResult['before'];
 }
 
 export type Card = LessonCard | WarningCard;
+
+export const NOT_REPRODUCED_NOTE = "Lucid couldn't reproduce this in its sandbox. That doesn't mean it's safe.";
+
+const BEFORE_WORDS: Record<ProofResult['before'], string> = {
+  blocked: 'blocked',
+  leaked: 'also open',
+  'no-table': "the table didn't exist",
+  'not-run': 'not checked',
+  error: 'not checked',
+};
+
+/** "In a disposable sandbox with fake users, a signed-out visitor read 2 of Alice's private rows from `notes`. Before your commit: blocked. After: leaked." */
+export const proofSentence = (r: Pick<ProofResult, 'role' | 'action' | 'rows' | 'table' | 'before'>): string => {
+  const who = r.role === 'anon' ? 'a signed-out visitor' : 'another signed-in user (Bob)';
+  const whose = (kind: string) => (r.rows === 1 ? `Alice's ${kind}row` : `${r.rows} of Alice's ${kind}rows`);
+  const did = { read: `read ${whose('private ')}`, update: `changed ${whose('')}`, delete: `deleted ${whose('')}` }[r.action ?? 'read'];
+  const after = r.action === 'read' ? 'leaked' : 'allowed';
+  const where = r.action === 'update' ? 'in' : 'from';
+  return `In a disposable sandbox with fake users, ${who} ${did} ${where} \`${r.table}\`. Before your commit: ${BEFORE_WORDS[r.before]}. After: ${after}.`;
+};
+
+/**
+ * The card after the prover ran. Only this sets evidence to 'proven', and
+ * only for a result the prover marked proven. Anything else leaves the
+ * warning as it was, with one quiet line; it is never a safety claim.
+ */
+export const applyProof = (card: WarningCard, result: ProofResult): WarningCard => {
+  if (result.status === 'proven' && result.table && result.role && result.action && result.query) {
+    return {
+      ...card,
+      evidence: 'proven',
+      proof: {
+        statement: PROOF_STATEMENT,
+        sentence: proofSentence(result),
+        query: result.query,
+        table: result.table,
+        role: result.role,
+        action: result.action,
+        rows: result.rows,
+        before: result.before,
+      },
+      proofNote: undefined,
+    };
+  }
+  return { ...card, proofNote: NOT_REPRODUCED_NOTE };
+};
 
 const quote = (q: VerifiedQuote): CardQuote => ({ file: q.file, line: q.line, endLine: q.endLine, code: q.code, link: q.link });
 const extraOf = (extra: VerifiedQuote | undefined) =>

@@ -17,13 +17,15 @@ import reviewLessonPrompt from '../../src/prompts/reviewLesson.md';
 import reviewWarningPrompt from '../../src/prompts/reviewWarning.md';
 import writeLessonPrompt from '../../src/prompts/writeLesson.md';
 import writeWarningPrompt from '../../src/prompts/writeWarning.md';
-import { toCard, type Card } from '../../src/engine/card';
+import { applyProof, toCard, type Card, type WarningCard } from '../../src/engine/card';
+import { parseDiff } from '../../src/engine/diff';
 import { runLucid, type CardKind, type LucidStep } from '../../src/engine/lucid';
 import { useApiKeys } from '../../src/engine/model';
 import { providePrompts } from '../../src/engine/prompts';
 import { reportLines } from '../../src/terminal';
 import { renderCardHtml } from '../../src/ui/cardHtml';
-import { commitDiff, commitSubject, headCommit, lastReflogSubject, parentsOf, type CommitRef, type GitApi, type GitExtension, type GitRepository } from './git';
+import { commitDiff, commitSubject, fileAt, filesAt, headCommit, lastReflogSubject, parentsOf, type CommitRef, type GitApi, type GitExtension, type GitRepository } from './git';
+import { askProve, proveRequest, type CommitFiles } from './prove';
 import { MISSING_KEYS, NO_LESSON, plainReason } from './messages';
 import { askServer, DEFAULT_SERVER_URL } from './server';
 import { classifyHeadChange, RunQueue } from './trigger';
@@ -129,6 +131,45 @@ export function activate(context: vscode.ExtensionContext): void {
     panel.onDidDispose(() => (panel = undefined), null, context.subscriptions);
   };
 
+  /** A card changed after it was shown (the prover's result): keep the newest, redraw it if it is open. */
+  const replaceCard = (old: Card, updated: Card) => {
+    if (lastCard === old) lastCard = updated;
+    if (panel && shownCard === old) {
+      shownCard = updated;
+      panel.webview.html = renderCardHtml(updated, { webview: { nonce: randomBytes(16).toString('hex') } });
+    }
+  };
+
+  // --- the prover -------------------------------------------------------------
+  /**
+   * A data-exposure warning is tested in Lucid's sandbox in the background:
+   * the card is already showing. Proven -> the card says "Proven" and a second
+   * toast appears. Anything else leaves the warning with one quiet line.
+   */
+  const proveInBackground = async (commit: CommitRef, diffText: string, card: WarningCard, token: string, serverUrl: string) => {
+    const [parentSha] = await parentsOf(commit).catch(() => [] as string[]);
+    const files = (c: CommitRef): CommitFiles => ({ paths: () => filesAt(c), read: (path) => fileAt(c, path) });
+    const request = await proveRequest(parseDiff(diffText), files(commit), parentSha ? files({ ...commit, sha: parentSha }) : null).catch(() => null);
+    if (!request) return;
+
+    const running = askProve(serverUrl, token, request);
+    vscode.window.setStatusBarMessage('$(beaker~spin) Lucid is testing this warning in a sandbox with fake users…', running);
+    const answer = await running;
+    if (answer.kind === 'problem') {
+      console.log(`[Lucid] ${commit.sha.slice(0, 7)} prover: ${answer.message}`);
+      return replaceCard(card, { ...card, proofNote: answer.message });
+    }
+    const r = answer.result;
+    console.log(`[Lucid] ${commit.sha.slice(0, 7)} prover: ${r.status}${r.reason ? ` (${r.reason})` : ''}. ${r.summary}`);
+    const updated = applyProof(card, r);
+    replaceCard(card, updated);
+    if (updated.evidence === 'proven') {
+      void vscode.window.showWarningMessage(`⚠️ Lucid proved it: ${updated.title}`, 'Show me').then((choice) => {
+        if (choice === 'Show me') showCard(updated);
+      });
+    }
+  };
+
   // --- GitHub sign-in (for Lucid's server) ----------------------------------
   /** The session; 'none' when not signed in; 'unavailable' when this editor has no GitHub sign-in at all. */
   const githubSession = async (): Promise<vscode.AuthenticationSession | 'none' | 'unavailable'> => {
@@ -203,7 +244,13 @@ export function activate(context: vscode.ExtensionContext): void {
         showBusy('server');
         const serverUrl = settings().get<string>('serverUrl', DEFAULT_SERVER_URL) || DEFAULT_SERVER_URL;
         const answer = await askServer(serverUrl, token, diffText, title, fetch, wantedKinds());
-        if (answer.kind === 'done') return present(commit.sha, answer.outcome, answer.card, answer.report);
+        if (answer.kind === 'done') {
+          present(commit.sha, answer.outcome, answer.card, answer.report);
+          if (answer.card?.kind === 'risk' && answer.card.category === 'data-exposure' && settings().get<boolean>('prove', true)) {
+            void proveInBackground(commit, diffText, answer.card, token, serverUrl);
+          }
+          return;
+        }
         if (answer.kind === 'nothing-to-send') return present(commit.sha, 'no-readable-files', null, ['nothing left to send after filtering']);
         console.log(`[Lucid] ${commit.sha.slice(0, 7)} server: ${answer.message}`);
         if (answer.action === 'sign-in') return askToSignIn(commit, answer.message, true);

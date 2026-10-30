@@ -183,7 +183,7 @@ describe('HTTP server', () => {
   afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
   it('answers health, lessons and unknown paths', async () => {
-    expect(await (await fetch(`${base}/health`)).json()).toEqual({ ok: true, enabled: true });
+    expect(await (await fetch(`${base}/health`)).json()).toEqual({ ok: true, enabled: true, prove: false });
     const lesson = await fetch(`${base}/lesson`, { method: 'POST', headers: { authorization: 'Bearer good' }, body });
     expect(lesson.status).toBe(200);
     expect((await fetch(`${base}/nope`)).status).toBe(404);
