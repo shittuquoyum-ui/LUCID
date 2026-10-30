@@ -4,7 +4,7 @@
 > - Plain `postgres:16` plus a Supabase shim (roles, `auth.users`, `auth.uid()` / `auth.role()` / `auth.jwt()`), not the full supabase/postgres image: it starts in about 2 seconds.
 > - Standard probes written by code run first; the attacker model only runs when they find nothing. Ground truth (canaries, row fingerprints) decides, then a privacy judge can downgrade a read of clearly public data.
 > - The query that worked is replayed on the database as it was before the commit, for "before: blocked, after: leaked".
-> - On Modal, the sandbox broker runs in a thread of the server function (a child process gets no Modal credentials), and talks to the sandbox over its stdin and stdout.
+> - On Modal, the sandbox broker runs in a thread of the server function and talks to the sandbox over its stdin and stdout. (As a child process it hung there; the image also lacked CA certificates at the time, so which of the two was the cause is not certain.)
 > - Limits: 5 proofs per person per day, a global cap (`LUCID_PROVE_CAP`, 100), and a kill switch (`LUCID_PROVE_ENABLED=false`). There is no one-time question before the first upload: the prover runs for every data-exposure warning when you're signed in, and the `lucid.prove` setting turns it off.
 
 Today Lucid's warning cards say **Warning**: a model saw a risk in the change, and a second model checked the claim against the diff. Nothing has been run. The prover is the next step. It runs the builder's database setup in a throwaway sandbox and tries to read another user's rows. Only when that attack actually works does a card say **Proven**. No model can set that label; only the prover's result can (`evidence: 'proven'` on the card, see `src/engine/card.ts`).

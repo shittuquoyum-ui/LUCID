@@ -69,9 +69,11 @@ BROKER_PORT = 8001
 def _start_broker_and(command, extra_env=None):
     """
     The prover's sandbox broker runs in a thread of this function's own
-    process: only this process has the container's Modal credentials (a child
-    process gets none and hangs). Node reaches it on 127.0.0.1 with a token
-    made fresh for this container.
+    process, where the Modal client is known to work (tested with
+    check_sandbox). Started as a child process here it hung without a word;
+    that was before the image had CA certificates, so the cause is not
+    certain. Node reaches it on 127.0.0.1 with a token made fresh for this
+    container.
     """
     import os
     import secrets

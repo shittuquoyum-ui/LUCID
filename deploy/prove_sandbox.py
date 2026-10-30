@@ -5,9 +5,8 @@ Node prover (src/prover/sandbox.ts) attacks. Two ways to reach it:
   - stdio (local runs): started as a child process for one proof, JSON lines
     on stdin and stdout.
   - HTTP (on Modal): serve() runs in a thread of the server function itself,
-    on 127.0.0.1 only, behind a token the Node server is given at start. A
-    child process there gets no Modal credentials; the function's own process
-    has them.
+    on 127.0.0.1 only, behind a token the Node server is given at start.
+    (Started as a child process there, it hung; see deploy/modal_app.py.)
 
 Messages:
   {"op": "start"}                                       -> {"session": id}, Postgres running
@@ -20,8 +19,9 @@ a Unix socket only. SQL never runs anywhere but inside it.
 
 Inside, the sandbox's own main process is a small bash loop: it starts
 Postgres, then reads one request per line on stdin and answers one line on
-stdout (fields in base64). It talks over the sandbox's stdio, which works
-from inside a Modal container; Sandbox.exec there hung.
+stdout (fields in base64): one sandbox process for the whole proof instead
+of one Sandbox.exec per query. (exec hung inside the Modal container while
+the image lacked CA certificates; the stdio loop is what was tested since.)
 """
 
 import base64
