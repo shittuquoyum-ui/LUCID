@@ -54,7 +54,7 @@ export const reportLines = (report: LucidReport): string[] => {
     `sent: ${report.sentFiles.join(', ') || '(nothing)'}`,
   ];
   if (report.skippedFiles.length) lines.push(`skipped: ${report.skippedFiles.map((s) => `${s.path} (${s.reason})`).join(', ')}`);
-  if (report.redactedLines) lines.push(`hidden as possible secrets: ${report.redactedLines} line(s)`);
+  if (report.redactedLines) lines.push(`possible secrets masked: ${report.redactedLines} line(s)`);
   if (report.signals.length) lines.push(`risk signals: ${report.signals.map((s) => `${s.id} (${s.file}:${s.line})`).join(', ')}`);
   if (report.pick) {
     const p = report.pick;
@@ -80,7 +80,12 @@ export const reportLines = (report: LucidReport): string[] => {
   if (report.warningReview) {
     const r = report.warningReview;
     const why = [r.riskShown ? null : 'risk not shown in the change', r.claimsTrue ? null : 'false claims', r.fixOk ? null : 'wrong fix'].filter((x) => x !== null);
-    lines.push(`fact check (warning): ${r.passed ? 'passed' : `failed (${why.join(', ') || 'no verdict'})`}, severity ${r.severity}`);
+    lines.push(`fact check (warning): ${r.passed ? 'passed' : `failed (${why.join(', ') || 'no verdict'})`}`);
+  }
+  if (report.severity && report.severityCall) {
+    const c = report.severityCall;
+    const move = c.reason ? `; asked ${c.proposed} because "${c.reason}", ${report.warningReview?.severityReasonAccepted ? 'accepted' : 'not accepted'}` : '';
+    lines.push(`severity: ${report.severity} (rules: ${c.rule}${move})`);
   }
   const calls = (step: Attempt['step']) => report.attempts.filter((a) => a.step === step).length;
   if (report.attempts.length) lines.push(`model calls: pick ${calls('pick')}, write ${calls('write')}, review ${calls('review')}`);

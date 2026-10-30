@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "server": "tsx --env-file-if-exists=.env src/server/main.ts",
     "build:server": "node scripts/build-server.mjs",
-    "deploy": "npm run build:server && modal deploy deploy/modal_app.py"
+    "deploy": "npm run build:server && node scripts/deploy.mjs"
   },
   "engines": {
     "node": ">=20"

@@ -36,6 +36,8 @@ Quote rules (code checks these; a quote that fails is deleted, and if all fail t
 - Lines marked '=' were removed and added back unchanged, so they are not new. Never warn about them.
 - "note": a few plain words on what this line does.
 - Never quote a line marked [hidden by Lucid: ...].
+- Secret values are masked as a short prefix and dots (`sk_live••••`). Quote such a line exactly as shown, dots included. Never guess or fill in the hidden part.
+- For a secret typed into the code, the fix prompt must also say to replace the key with a new one where it was issued (the old one is in the project's history), and to read it from a server-only setting instead.
 
 Here is a card that gets everything right. Match its tone, length and shape. Do not copy its content unless your change really is this one.
 

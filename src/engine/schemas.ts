@@ -36,11 +36,13 @@ export const ConceptPickSchema = z
     why: z.string().min(1).max(400),
     evidence: z.array(EvidenceSchema).max(4),
     category: z.enum(RISK_CATEGORIES).nullish(),
+    /** Only when it differs from the rules' level for the category (see severity.ts), with a reason. */
     severity: z.enum(SEVERITIES).nullish(),
+    severityReason: z.string().max(300).nullish(),
   })
   .transform((p) => {
     const kind: PickKind = p.kind ?? (p.teach ? 'lesson' : 'none');
-    return { ...p, kind, teach: kind !== 'none', category: p.category ?? null, severity: p.severity ?? null };
+    return { ...p, kind, teach: kind !== 'none', category: p.category ?? null, severity: p.severity ?? null, severityReason: p.severityReason ?? null };
   });
 
 /**

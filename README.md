@@ -26,7 +26,7 @@ No API keys needed: lessons are written on Lucid's server, 20 per GitHub user pe
 
 ```
 a commit or pull request diff
-  → filter        drop .env files, lockfiles, build output, binaries; hide secret-looking lines
+  → filter        drop .env files, lockfiles, build output, binaries; mask secret values (sk_live••••)
   → signals       plain code: pattern checks for risks (RLS off, using (true), owner checks removed,
                   service_role or secrets in browser code, admin routes without a role check,
                   writes without an owner filter, unsigned webhooks, CORS *, dropped tables…)
@@ -64,7 +64,17 @@ THE IDEA BEHIND IT  2–3 sentences, with one everyday comparison
 Lucid flags risks it can see in this change. It's a safety net, not a security audit.
 ```
 
-Amber for medium and low, red for high. `evidence` is always `warning` for now; `proven` is reserved for the prover, and the schema rejects it from any model.
+Every warning card says **Potential risk detected** under its label. Amber for medium and low, red for high. `evidence` is always `warning` for now; `proven` is reserved for the prover, and the schema rejects it from any model.
+
+**Severity follows rules, not moods** (`src/engine/severity.ts`):
+
+| Severity | Risks |
+|---|---|
+| high | data exposure (RLS off, rules that let every row through, owner checks taken out of a rule, public buckets), secrets or the service key in browser code |
+| medium | a missing owner check on an update or delete, an admin route without a role check, a webhook without a signature check |
+| low | CORS `*`, anything else |
+
+The picker may move a risk one level, and only with a reason. The fact check accepts or rejects the reason, and a rejected one leaves the rule's level.
 
 ## The lesson card
 
@@ -85,7 +95,7 @@ Every quote is checked against your code · Lucid stores nothing
 
 ## What Lucid sends, and what it keeps
 
-- **Filters on your machine first:** before anything leaves your computer, the extension drops `.env` files, key files, lockfiles, build output and binaries, and hides lines that look like keys or tokens. Only that filtered diff (the changed lines of up to 5 files) is sent.
+- **Filters on your machine first:** before anything leaves your computer, the extension drops `.env` files, key files, lockfiles, build output and binaries, and masks any value that looks like a key or token (`sk_live_abc…` becomes `sk_live••••`, at most 7 characters of a known prefix and nothing of anything else). The real value never leaves your machine; a card can still point at the line. Only that filtered diff (the changed lines of up to 5 files) is sent.
 - **Passes through our server:** the filtered diff goes to the Lucid server, which filters it again and sends it to Meta and Baseten to write and check the lesson.
 - **Keeps nothing:** the server stores no diffs, no lessons and no accounts. It only counts lessons per GitHub user per day in memory (20 each), and logs status codes and timings, never your code.
 - **Your own keys instead:** with your own Meta and Baseten keys set in the extension, the filtered diff goes straight to Meta and Baseten and never touches our server.
@@ -139,7 +149,7 @@ npm test         # diff parsing, secret filter, risk signals, quote checker, pla
 npm run typecheck
 ```
 
-`test/fixtures/risky-commits/` holds 9 small risky commits and 8 safe look-alikes (an owner policy, a server-only key, a verified webhook…). The signals must fire on every risky one and stay quiet on every safe one.
+`test/fixtures/risky-commits/` holds 10 small risky commits and 8 safe look-alikes (an owner policy, a server-only key, a verified webhook…). The signals must fire on every risky one and stay quiet on every safe one.
 
 ## Status
 

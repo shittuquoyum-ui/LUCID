@@ -6,7 +6,7 @@
 import { changedCount, shownLine, type DiffFile, type DiffLine } from './diff';
 import { HIDDEN_TEXT } from './filter';
 import type { Review, WarningReview } from './review';
-import type { ConceptPick, Lesson, Risk, Severity } from './schemas';
+import type { ConceptPick, Lesson, Risk } from './schemas';
 import type { RiskCategory, Signal } from './signals';
 
 const GUESSES: [RegExp, string][] = [
@@ -39,7 +39,6 @@ export const fakePick = (files: DiffFile[], signals: Signal[] = []): object => {
       kind: 'risk',
       concept: CONCEPT_FOR[risk.category],
       category: risk.category,
-      severity: 'medium',
       why: `Fake model: trusted the "${risk.id}" signal.`,
       evidence: [{ file: risk.file, line: risk.line, status: risk.status, code: risk.code }],
     };
@@ -68,8 +67,8 @@ const CONCEPT_FOR: Record<RiskCategory, string> = {
 /** The fake fact checker always passes; it never read anything. */
 export const fakeReview = (): Review => ({ claimsTrue: true, wrongClaims: [], quizAnsweredByStory: false, quizProblem: '' });
 
-/** The fake warning check passes too, keeping the picker's severity. */
-export const fakeWarningReview = (severity: Severity): WarningReview => ({ riskShown: true, wrongClaims: [], severity, fixPromptOk: true, fixProblem: '' });
+/** The fake warning check passes too. */
+export const fakeWarningReview = (): WarningReview => ({ riskShown: true, wrongClaims: [], severityReasonAccepted: true, fixPromptOk: true, fixProblem: '' });
 
 /** Written to pass the plain-English checker, so fake runs exercise the happy path. */
 export const fakeWarning = (pick: ConceptPick): Risk => {

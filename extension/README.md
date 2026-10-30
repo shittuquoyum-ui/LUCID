@@ -32,7 +32,7 @@ The **👁 Lucid** button in the status bar reopens your last card. While Lucid 
 
 ## What Lucid sends, and what it keeps
 
-- **Filtered on your computer first.** Before anything leaves your machine, Lucid drops `.env` files, key files, lockfiles, build output and images, and hides any line that looks like a password, key or token. Only that filtered change is sent.
+- **Filtered on your computer first.** Before anything leaves your machine, Lucid drops `.env` files, key files, lockfiles, build output and images, and masks anything that looks like a password, key or token (`sk_live••••`). The real value never leaves your machine. Only that filtered change is sent.
 - **Through Lucid's server to the AI models.** The filtered change goes to Lucid's server, which filters it again and asks Meta's and Baseten's models to write and check the card.
 - **Nothing is kept.** The server stores no code, no cards and no accounts. GitHub sign-in is only used to count cards (20 per person per day).
 - Secret filtering is a precaution, not a guarantee. Don't commit secrets.

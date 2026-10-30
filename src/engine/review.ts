@@ -25,7 +25,8 @@ import { LISTING_LEGEND, renderListing, renderVersions } from './listing';
 import { callModel, type Effort, type Provider, type Usage } from './model';
 import { prompt } from './prompts';
 import type { CheckedLesson, CheckedRisk } from './quoteCheck';
-import { SEVERITIES, type Severity } from './schemas';
+import type { SeverityCall } from './severity';
+import { recreatedNote, type RiskCategory } from './signals';
 import type { Attempt } from './steps';
 
 export const ReviewSchema = z.object({
@@ -102,6 +103,7 @@ export interface ReviewOptions {
 const reviewInput = (files: DiffFile[], title: string | null, cardLabel: string, card: object): string =>
   [
     title ? `Change title: ${title}` : null,
+    recreatedNote(files),
     'THE CHANGE AS BEFORE AND AFTER',
     renderVersions(files),
     '',
@@ -166,8 +168,8 @@ export const WarningReviewSchema = z.object({
   /** The risk is visible in the changed lines themselves, without guessing about code that is not shown. */
   riskShown: z.boolean(),
   wrongClaims: z.array(z.string().min(1).max(400)).max(8),
-  /** The severity the reviewer would give. It replaces the picker's. */
-  severity: z.enum(SEVERITIES),
+  /** Whether the change itself backs the picker's reason for moving the severity a level. Ignored when it did not move. */
+  severityReasonAccepted: z.boolean(),
   fixPromptOk: z.boolean(),
   fixProblem: z.string().max(400),
 });
@@ -180,7 +182,8 @@ export interface WarningReviewCheck {
   /** Title, consequences, who is affected, plainWords and the idea match the change, as possibilities. */
   claimsTrue: boolean;
   fixOk: boolean;
-  severity: Severity;
+  /** The picker's reason for a severity one level off the rules holds up. Never fails the card. */
+  severityReasonAccepted: boolean;
   problems: string[];
 }
 
@@ -191,7 +194,14 @@ export const toWarningReviewCheck = (r: WarningReview): WarningReviewCheck => {
     ...r.wrongClaims.map((c) => `fact check found a false or unprovable claim: ${clause(c)}. Say only what the quoted lines could let happen`),
     ...(r.fixPromptOk ? [] : [`fact check: the fix prompt is wrong or unsafe${clause(r.fixProblem) ? ` (${clause(r.fixProblem)})` : ''}. Write a fix that is correct for this exact code`]),
   ];
-  return { passed: r.riskShown && claimsTrue && r.fixPromptOk, riskShown: r.riskShown, claimsTrue, fixOk: r.fixPromptOk, severity: r.severity, problems };
+  return {
+    passed: r.riskShown && claimsTrue && r.fixPromptOk,
+    riskShown: r.riskShown,
+    claimsTrue,
+    fixOk: r.fixPromptOk,
+    severityReasonAccepted: r.severityReasonAccepted,
+    problems,
+  };
 };
 
 export interface WarningReviewResult {
@@ -199,10 +209,11 @@ export interface WarningReviewResult {
   attempts: Attempt[];
 }
 
-/** What the reviewer needs from the warning: every word the builder reads and the fix they would paste. */
-const warningForReview = (warning: CheckedRisk, risk: { category: string; severity: Severity }) => ({
+/** What the reviewer needs from the warning: every word the builder reads, the fix they would paste, and any severity move to judge. */
+const warningForReview = (warning: CheckedRisk, risk: WarningRisk) => ({
   category: risk.category,
-  severity: risk.severity,
+  severityByRules: risk.severity.rule,
+  ...(risk.severity.reason ? { severityProposed: risk.severity.proposed, severityReason: risk.severity.reason } : {}),
   title: warning.title,
   whatCouldHappen: warning.whatCouldHappen,
   whoIsAffected: warning.whoIsAffected,
@@ -216,16 +227,19 @@ export const reviewWarning = async (
   files: DiffFile[],
   title: string | null,
   warning: CheckedRisk,
-  risk: { category: string; severity: Severity },
+  risk: WarningRisk,
   provider: Provider,
   options: ReviewOptions = {},
 ): Promise<WarningReviewResult> => {
   const base = reviewInput(files, title, 'THE WARNING', warningForReview(warning, risk));
-  const { check, attempts } = await askReviewer(WarningReviewSchema, toWarningReviewCheck, prompt('reviewWarning'), base, provider, options, () =>
-    fakeWarningReview(risk.severity),
-  );
+  const { check, attempts } = await askReviewer(WarningReviewSchema, toWarningReviewCheck, prompt('reviewWarning'), base, provider, options, fakeWarningReview);
   return {
-    review: check ?? { passed: false, riskShown: false, claimsTrue: false, fixOk: false, severity: risk.severity, problems: [NO_VERDICT] },
+    review: check ?? { passed: false, riskShown: false, claimsTrue: false, fixOk: false, severityReasonAccepted: false, problems: [NO_VERDICT] },
     attempts,
   };
 };
+
+export interface WarningRisk {
+  category: RiskCategory;
+  severity: SeverityCall;
+}

@@ -113,6 +113,7 @@ main.warning .plain { border-left-color: var(--sev); }
 .head { display: flex; gap: 8px; align-items: center; }
 .badge { padding: 2px 8px; border-radius: 999px; color: var(--sev); background: var(--sev-bg); border: 1px solid var(--sev); }
 .severity { color: var(--sev); }
+.detected { margin: 0 0 6px; font-size: 14px; color: var(--muted); }
 pre.fix code { white-space: pre-wrap; width: auto; }
 .copy-row { display: flex; gap: 10px; align-items: center; }
 .copy { font: inherit; font-size: 14px; padding: 6px 14px; cursor: pointer; color: var(--bg); background: var(--sev, var(--accent)); border: 0; border-radius: 6px; }
@@ -206,6 +207,7 @@ const SEVERITY_LABEL: Record<WarningCard['severity'], string> = { high: 'High', 
  */
 const warningBody = (card: WarningCard): string => `<main class="warning sev-${card.severity}" data-evidence="${escapeHtml(card.evidence)}">
   <p class="label head"><span class="badge">Warning</span> <span class="severity">${SEVERITY_LABEL[card.severity]}</span></p>
+  <p class="detected">Potential risk detected</p>
   <h1>${prose(card.title)}</h1>
 
   <h2>What could happen</h2>

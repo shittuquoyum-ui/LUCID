@@ -10,7 +10,8 @@ Risks come first. If the change shows a risk, the kind is "risk", even when it w
 
 When a change is a risk
 - The risk must be visible in the changed lines themselves: a line this change added or removed that opens, weakens, removes or skips a protection, or exposes something. Quote that line as evidence.
-- If it is only a risk because of code you cannot see (another file, database rules not shown, how a value is filled in elsewhere), it is NOT a risk. At most it is a lesson.
+- If it is only a risk because you guess that code you cannot see is broken (another file, how a value is filled in elsewhere), it is NOT a risk. At most it is a lesson.
+- But code in the change that skips or removes a check IS a risk, even when another layer you cannot see (such as database rules) might also block the harm. A delete that never checks the owner is a risk; the warning will say what it "could" let happen, not that nothing else protects it.
 - A false alarm is worse than silence. When you are unsure, it is not a risk.
 - Examples of risks: turning row level security off; a policy changed to `using (true)` on private data; an owner check (`auth.uid() = user_id`) taken out of a policy; the service role key used in code that runs in the browser; a secret in a `NEXT_PUBLIC_` setting; an admin route or action with no check of the person's role; an update or delete that never checks who owns the row; a payment webhook that never checks its signature; a price or amount taken from what the browser sends.
 - Not risks: adding a check, lock or policy; recreating a rule that already existed with the same effect; a key used only in server code; a public anon key in the browser (it is meant to be public).
@@ -21,11 +22,15 @@ Risk hints
 - You may find a risk the hints missed.
 
 For a risk, also give
-- "category": one of "data-exposure", "secrets", "auth", "ownership", "payments", "other". Data exposure (people reading or changing other people's data) beats every other category.
-- "severity":
-  - "high": could let anyone, or any signed-in person, read or change other people's data, use a key with full access, or skip paying.
-  - "medium": harm needs something extra, like knowing or guessing another person's id, or being signed in.
-  - "low": limited harm, or harm that needs an unusual situation.
+- "category": one of these. Data exposure beats every other category.
+  - "data-exposure": database rules (row level security off, a rule that lets every row through, an owner check taken out of a rule, a public storage bucket)
+  - "secrets": a secret or the service key in code that runs in the browser, or in a NEXT_PUBLIC_ setting
+  - "ownership": an update or delete in the app's code that never checks who owns the row
+  - "auth": a sign-in check removed, an admin route or action without a role check
+  - "payments": a webhook without a signature check, a price or amount taken from the browser
+  - "other": CORS that lets any website call, dropped tables, deletes with no condition, anything else
+- Severity follows fixed rules by category: data-exposure and secrets are high; ownership, auth and payments are medium; other is low. Leave "severity" and "severityReason" null to keep the rule.
+- Only when the change itself clearly makes this risk worse or milder than usual, you may move it ONE level: set "severity" and give "severityReason", one sentence pointing at what in the change justifies it (for example "the rule only opens a table of public product names"). Another model checks the reason; if it does not hold, the rule's level stands.
 - "concept": the idea a builder needs to understand this risk, from the concept list.
 
 When to say "lesson"
@@ -45,15 +50,17 @@ Evidence rules (they are checked by code, and wrong evidence is thrown away)
 - "code" must be copied exactly from the diff, one or more consecutive lines, without the "+ 12 |" prefix.
 - "line" is the number shown next to the first quoted line. "status" is that line's status: "added" ('+'), "unchanged" (' ') or "removed" ('-').
 - At least one piece of evidence must include a line this change added ('+') or removed ('-'). Unchanged (' ') lines can only add context.
+- A "RE-CREATED RULES" note means the change drops a rule and creates it again under the same name, with its old version not shown. That proves no new behaviour: it is neither a risk nor a lesson about a new rule. At most it is a lesson about what the commit did (re-creating the rule so setup can run twice), and usually it is "none".
 - Lines marked '=' were removed and added back unchanged. They are not a change: never use them as the evidence, and never treat them as new behaviour. If a change only moves or re-creates things that already existed, it is neither a risk nor a lesson.
 - Never quote a line marked [hidden by Lucid: ...].
 
-Answer with JSON only, no other text, in exactly this shape. For a lesson, "category" and "severity" are null. For "none", "concept" is "none" and "evidence" is [].
+Answer with JSON only, no other text, in exactly this shape. For a lesson, "category", "severity" and "severityReason" are null. For "none", "concept" is "none" and "evidence" is [].
 {
   "kind": "risk",
   "concept": "row-level-security",
   "category": "data-exposure",
-  "severity": "high",
+  "severity": null,
+  "severityReason": null,
   "why": "One sentence: what this change does and why it is a risk (or why this concept is worth teaching).",
   "evidence": [
     { "file": "supabase/migrations/0007_messages_read.sql", "line": 4, "status": "added", "code": "using (true);" }

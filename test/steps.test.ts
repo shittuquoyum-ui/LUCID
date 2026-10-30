@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Script the model's answers so retries can be tested without any API.
@@ -237,6 +239,36 @@ describe('writeLesson', () => {
     // The writer heard why, in the retry.
     const retry = vi.mocked(callModel).mock.calls.map((c) => c[1]).filter((c) => c.system.includes('You write lesson cards'))[1]!;
     expect(retry.user).toContain('fact check found a false claim: Story paragraph 1 says anyone could delete');
+  });
+
+  it('rejects "now" claims about a rule that is only dropped and re-created (safe-07)', async () => {
+    const diff = readFileSync(join(import.meta.dirname, 'fixtures', 'risky-commits', 'safe-07-policy-recreated.diff'), 'utf8');
+    const recreated = filterDiff(parseDiff(diff)).files;
+    const file = 'supabase/migrations/20261030095000_notes_policy.sql';
+    const createQuote = { file, line: 2, role: 'shows', code: 'create policy "owners read their notes"', note: 'Creates the read rule.' };
+    const nowClaim = { ...lesson([createQuote], ['Your notes list now checks who owns each note.', 'Like a locker that only opens for its owner.']), title: 'Your notes list now checks note owners' };
+    const whatItDid = {
+      ...lesson([createQuote], ['This change removes the notes read rule and writes it again.', 'So the setup can run twice without stopping. Like re-hanging a sign that was already up.']),
+      title: 'Your setup now re-creates the notes read rule',
+    };
+    const notNew = verdict({
+      claimsTrue: false,
+      wrongClaims: ['The title says the notes list now checks note owners, but the rule is only dropped and created again; its earlier version is not shown, so nothing proves it is new'],
+    });
+    const recreatedPick = { ...goodPick, evidence: [{ file, line: 2, status: 'added', code: 'create policy "owners read their notes"' }] } as unknown as Parameters<typeof writeLesson>[2];
+
+    vi.mocked(callModel).mockClear();
+    answers.push(JSON.stringify(nowClaim), notNew, JSON.stringify(whatItDid), verdict());
+    const r = await writeLesson(recreated, null, recreatedPick, null, 'meta', 'baseten');
+    expect(r.lesson?.title).toBe('Your setup now re-creates the notes read rule');
+
+    const calls = vi.mocked(callModel).mock.calls.map((c) => c[1]);
+    const review = calls.find((c) => c.system.includes('fact checker'))!;
+    // Every model that reads the change is told the rule is re-created, with its old version unseen.
+    expect(review.user).toContain('RE-CREATED RULES: this change drops "owners read their notes" and creates it again under the same name.');
+    expect(review.system).toContain('A rule dropped and created again under the same name');
+    expect(calls[0]!.user).toContain('RE-CREATED RULES');
+    expect(calls[2]!.user).toContain('fact check found a false claim: The title says the notes list now checks note owners');
   });
 
   it('asks the fact checker again when its answer is not valid JSON', async () => {

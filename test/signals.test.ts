@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseDiff } from '../src/engine/diff';
 import { filterDiff } from '../src/engine/filter';
-import { findSignals, runsInBrowser, type SignalId } from '../src/engine/signals';
+import { findSignals, recreatedPolicies, runsInBrowser, type SignalId } from '../src/engine/signals';
 
 const dir = join(import.meta.dirname, 'fixtures', 'risky-commits');
 const signalsIn = (diff: string) => findSignals(filterDiff(parseDiff(diff)).files);
@@ -30,6 +30,7 @@ const RISKY: Record<string, SignalId> = {
   'risky-07-delete-without-owner.diff': 'write-without-owner-filter',
   'risky-08-stripe-webhook-unverified.diff': 'webhook-without-signature-check',
   'risky-09-bucket-public.diff': 'bucket-made-public',
+  'risky-10-secret-in-browser-code.diff': 'secret-in-browser-code',
 };
 
 describe('risk signals on the fixture commits', () => {
@@ -76,7 +77,23 @@ describe('risk signals on small diffs', () => {
     expect(ids(swapped)).not.toContain('auth-check-removed');
   });
 
-  it('flags a hidden secret in browser code, not in server code', () => {
+  it('points at a masked secret in browser code, never showing it', () => {
+    const [s] = signalsIn(fixture('risky-10-secret-in-browser-code.diff'));
+    expect(s).toMatchObject({ id: 'secret-in-browser-code', line: 5, code: "const stripe = new Stripe('sk_live••••');" });
+  });
+
+  it('finds rules dropped and created again, unless the old rule is shown', () => {
+    expect(recreatedPolicies(filterDiff(parseDiff(fixture('safe-07-policy-recreated.diff'))).files)).toEqual(['owners read their notes']);
+    expect(recreatedPolicies(filterDiff(parseDiff(fixture('risky-02-policy-using-true.diff'))).files)).toEqual([]);
+    const shown = edit('supabase/migrations/1_notes.sql', [
+      ['-', 'create policy "read notes" on notes for select using (auth.uid() = user_id);'],
+      ['+', 'drop policy if exists "read notes" on notes;'],
+      ['+', 'create policy "read notes" on notes for select using (true);'],
+    ]);
+    expect(recreatedPolicies(filterDiff(parseDiff(shown)).files)).toEqual([]);
+  });
+
+  it('flags a secret in browser code, not in server code', () => {
     const key = "const stripeKey = 'sk_live_abcdefghijklmnopqrstuv';";
     expect(ids(newFile('src/components/Pay.tsx', [key]))).toContain('secret-in-browser-code');
     expect(ids(newFile('src/app/api/pay/route.ts', [key]))).not.toContain('secret-in-browser-code');

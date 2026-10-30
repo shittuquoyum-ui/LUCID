@@ -8,7 +8,7 @@
  * that checks its signature. Plain code, no model call.
  */
 import { shownLine, type DiffFile, type DiffLine } from './diff';
-import { HIDDEN_TEXT } from './filter';
+import { hasMaskedSecret, HIDDEN_TEXT } from './filter';
 
 export const RISK_CATEGORIES = ['data-exposure', 'secrets', 'auth', 'ownership', 'payments', 'other'] as const;
 export type RiskCategory = (typeof RISK_CATEGORIES)[number];
@@ -68,7 +68,7 @@ const HINT: Record<SignalId, string> = {
   'policy-allows-all': 'a policy that lets every row through (true)',
   'owner-check-removed': 'a check against the signed-in user (auth.uid()) was removed and not added back',
   'bucket-made-public': 'a storage bucket is set to public',
-  'secret-in-browser-code': 'a line hidden as a possible secret, in a file that runs in the browser',
+  'secret-in-browser-code': 'a secret value (masked here) typed into a file that runs in the browser',
   'service-role-in-browser-code': 'the service role (full database access) is used in a file that runs in the browser',
   'public-env-secret': 'a NEXT_PUBLIC_ setting (sent to every browser) named like a secret',
   'auth-check-removed': 'a sign-in check was removed and no other sign-in check was added in this file',
@@ -175,7 +175,7 @@ export const findSignals = (files: DiffFile[]): Signal[] => {
     // Secrets
     if (browser) {
       for (const l of f.lines) {
-        if (l.status === 'added' && l.redacted && l.text === HIDDEN_TEXT) add('secret-in-browser-code', f, l);
+        if (l.status === 'added' && (l.text === HIDDEN_TEXT || hasMaskedSecret(l.text))) add('secret-in-browser-code', f, l);
       }
       for (const l of added) if (SERVICE_ROLE.test(l.text)) add('service-role-in-browser-code', f, l);
     }
@@ -220,6 +220,32 @@ export const findSignals = (files: DiffFile[]): Signal[] => {
   }
 
   return out.sort((a, b) => PRIORITY.indexOf(a.category) - PRIORITY.indexOf(b.category));
+};
+
+/**
+ * Policies this change drops and creates again under the same name, where
+ * the earlier rule is not shown (no removed `create policy` line for it).
+ * The change cannot prove the new rule differs from the old one.
+ */
+export const recreatedPolicies = (files: DiffFile[]): string[] => {
+  const textOf = (status: DiffLine['status']) => files.flatMap((f) => f.lines.filter((l) => l.status === status).map((l) => l.text));
+  const names = (lines: string[], re: RegExp) => lines.map((t) => policyName(t.match(re))).filter((n) => n !== null);
+  const added = textOf('added');
+  const dropped = new Set(names(added, DROP_POLICY));
+  const shownBefore = new Set(names(textOf('removed'), CREATE_POLICY));
+  return [...new Set(names(added, CREATE_POLICY).filter((n) => dropped.has(n) && !shownBefore.has(n)))];
+};
+
+/** A note for every model that reads the change, or null when no rule is re-created. */
+export const recreatedNote = (files: DiffFile[]): string | null => {
+  const names = recreatedPolicies(files);
+  if (!names.length) return null;
+  const list = names.map((n) => `"${n}"`).join(', ');
+  return [
+    `RE-CREATED RULES: this change drops ${list} and creates ${names.length === 1 ? 'it' : 'them'} again under the same name.`,
+    'The earlier version is not shown, so nothing here proves the new rule behaves differently from the old one.',
+    'Never say it is new or "now" different. At most say what the commit did: it re-creates the rule (for example so the setup can run twice).',
+  ].join(' ');
 };
 
 /** The signals as hint lines for the picker. */

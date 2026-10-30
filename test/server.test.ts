@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseDiff, toUnifiedDiff } from '../src/engine/diff';
 import { filterDiff, HIDDEN_TEXT } from '../src/engine/filter';
@@ -15,6 +17,7 @@ const report = (over: Partial<LucidReport> = {}): LucidReport => ({
   lesson: null,
   warning: null,
   severity: null,
+  severityCall: null,
   pick: null,
   signals: [],
   check: null,
@@ -150,14 +153,23 @@ describe('the filtered diff that leaves the machine', () => {
     }
   });
 
-  it('never contains a secret, and a hidden line stays hidden on the server', () => {
+  it('never contains a secret, and a masked line stays masked on the server', () => {
     const text = toUnifiedDiff(filterDiff(parseDiff(RLS_DIFF)).files);
     expect(text).not.toContain('sk-live');
     expect(text).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
     expect(text).not.toContain('package-lock');
-    const hidden = filterDiff(parseDiff(text)).files.flatMap((f) => f.lines).filter((l) => l.text === HIDDEN_TEXT);
-    expect(hidden).toHaveLength(1);
-    expect(hidden[0]!.redacted).toBe(true);
+    const masked = filterDiff(parseDiff(text)).files.flatMap((f) => f.lines).filter((l) => l.masked);
+    expect(masked.map((l) => l.text)).toEqual(["export const ADMIN_KEY = 'sk-••••';"]);
+    // A line hidden whole by an older extension stays hidden.
+    const old = filterDiff(parseDiff(text.replace("export const ADMIN_KEY = 'sk-••••';", HIDDEN_TEXT))).files.flatMap((f) => f.lines);
+    expect(old.find((l) => l.text === HIDDEN_TEXT)?.redacted).toBe(true);
+  });
+
+  it('sends a secret typed into browser code only masked', () => {
+    const diff = readFileSync(join(import.meta.dirname, 'fixtures', 'risky-commits', 'risky-10-secret-in-browser-code.diff'), 'utf8');
+    const sent = toUnifiedDiff(filterDiff(parseDiff(diff)).files);
+    expect(sent).toContain("+const stripe = new Stripe('sk_live••••');");
+    expect(sent).not.toMatch(/sk_live_[a-z]/);
   });
 });
 

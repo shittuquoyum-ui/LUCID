@@ -22,6 +22,8 @@ const { pickConcept, writeWarning } = await import('../src/engine/steps');
 const { runLucid } = await import('../src/engine/lucid');
 const { toCard } = await import('../src/engine/card');
 const { checkPlainWarning } = await import('../src/engine/plainCheck');
+const { checkQuotes } = await import('../src/engine/quoteCheck');
+const { finalSeverity, proposeSeverity, RULE_SEVERITY } = await import('../src/engine/severity');
 const { renderCardHtml } = await import('../src/ui/cardHtml');
 const { callModel } = await import('../src/engine/model');
 
@@ -50,7 +52,7 @@ const warning = (over: object = {}) => ({
   ...over,
 });
 
-const verdict = (over: object = {}) => JSON.stringify({ riskShown: true, wrongClaims: [], severity: 'high', fixPromptOk: true, fixProblem: '', ...over });
+const verdict = (over: object = {}) => JSON.stringify({ riskShown: true, wrongClaims: [], severityReasonAccepted: true, fixPromptOk: true, fixProblem: '', ...over });
 
 const asPick = (p: object) => ({ ...p, teach: true }) as unknown as Parameters<typeof writeWarning>[2];
 
@@ -69,11 +71,11 @@ describe('the picker decides the kind', () => {
     expect(sent).toContain(`[rls-disabled, data-exposure] ${RLS_FILE} line 2 (added)`);
   });
 
-  it('sends a risk without severity back', async () => {
-    answers.push(JSON.stringify({ ...riskPick, severity: null }), JSON.stringify(riskPick));
+  it('sends a risk without a category back', async () => {
+    answers.push(JSON.stringify({ ...riskPick, category: null }), JSON.stringify(riskPick));
     const r = await pickConcept(files, null, 'baseten');
-    expect(r.attempts[0]!.problems[0]).toMatch(/give its "category" and "severity"/);
-    expect(r.pick?.severity).toBe('high');
+    expect(r.attempts[0]!.problems[0]).toMatch(/give its "category"/);
+    expect(r.pick?.category).toBe('data-exposure');
   });
 
   it('still reads the older shape ("teach")', async () => {
@@ -113,10 +115,85 @@ describe('writeWarning', () => {
     expect(retry).toContain('fact check: the fix prompt is wrong or unsafe (It turns off a second lock instead of fixing this one)');
   });
 
-  it('takes the fact checker’s severity', async () => {
-    answers.push(JSON.stringify(warning()), verdict({ severity: 'medium' }));
-    expect((await writeWarning(files, null, asPick(riskPick), null, 'meta', 'baseten')).severity).toBe('medium');
+  it('uses the rules’ severity when the picker does not move it', async () => {
+    answers.push(JSON.stringify(warning()), verdict());
+    const r = await writeWarning(files, null, asPick({ ...riskPick, severity: null }), null, 'meta', 'baseten');
+    expect(r.severity).toBe('high');
+    expect(r.severityCall).toEqual({ rule: 'high', proposed: 'high', reason: null });
   });
+
+  it('moves the severity one level only when the fact check accepts the reason', async () => {
+    const milder = asPick({ ...riskPick, severity: 'medium', severityReason: 'The table only holds public display names.' });
+    answers.push(JSON.stringify(warning()), verdict({ severityReasonAccepted: true }));
+    expect((await writeWarning(files, null, milder, null, 'meta', 'baseten')).severity).toBe('medium');
+    const review = vi.mocked(callModel).mock.calls[1]![1].user;
+    expect(review).toContain('"severityByRules": "high"');
+    expect(review).toContain('"severityReason": "The table only holds public display names."');
+
+    answers.push(JSON.stringify(warning()), verdict({ severityReasonAccepted: false }));
+    expect((await writeWarning(files, null, milder, null, 'meta', 'baseten')).severity).toBe('high');
+  });
+});
+
+describe('severity rules', () => {
+  it('sets the level by category', () => {
+    expect(Object.entries(RULE_SEVERITY)).toEqual([
+      ['data-exposure', 'high'],
+      ['secrets', 'high'],
+      ['ownership', 'medium'],
+      ['auth', 'medium'],
+      ['payments', 'medium'],
+      ['other', 'low'],
+    ]);
+  });
+
+  it('allows one level, and only with a reason', () => {
+    expect(proposeSeverity('ownership', 'high', 'Anyone signed out can call it.')).toEqual({ rule: 'medium', proposed: 'high', reason: 'Anyone signed out can call it.' });
+    expect(proposeSeverity('ownership', 'high', null)).toEqual({ rule: 'medium', proposed: 'medium', reason: null });
+    expect(proposeSeverity('ownership', 'high', '   ')).toEqual({ rule: 'medium', proposed: 'medium', reason: null });
+    // Two levels asked, one given.
+    expect(proposeSeverity('other', 'high', 'It drops the users table.').proposed).toBe('medium');
+    expect(proposeSeverity('secrets', 'low', 'A test key.').proposed).toBe('medium');
+  });
+
+  it('keeps the rule when the reason is rejected', () => {
+    const call = proposeSeverity('payments', 'low', 'Only test payments.');
+    expect(finalSeverity(call, true)).toBe('low');
+    expect(finalSeverity(call, false)).toBe('medium');
+    expect(finalSeverity(proposeSeverity('payments', null, null), false)).toBe('medium');
+  });
+});
+
+describe('a secret typed into browser code', () => {
+  const secretFiles = filterDiff(parseDiff(fixture('risky-10-secret-in-browser-code.diff'))).files;
+  const masked = "const stripe = new Stripe('sk_live••••');";
+  const pick = asPick({
+    kind: 'risk',
+    concept: 'secrets-and-env',
+    category: 'secrets',
+    why: 'A Stripe secret key is typed into a browser file.',
+    evidence: [{ file: 'src/components/CheckoutButton.tsx', line: 5, status: 'added', code: masked }],
+  });
+
+  it('can be quoted as masked, never with the real value', async () => {
+    const card = warning({
+      title: 'This change puts your Stripe secret key in the browser',
+      quotes: [{ file: 'src/components/CheckoutButton.tsx', line: 5, role: 'shows', code: masked, note: 'The secret key, typed into the page.' }],
+    });
+    answers.push(JSON.stringify(card), verdict());
+    const r = await writeWarning(secretFiles, null, pick, null, 'meta', 'baseten');
+    expect(r.warning?.quotes[0]?.code).toBe(masked);
+    expect(r.severity).toBe('high');
+    for (const call of vi.mocked(callModel).mock.calls) expect(call[1].user).not.toMatch(/sk_live_[a-z]/);
+  });
+
+  it('rejects a quote that fills in the hidden part', () => {
+    const guessed = checkQuotes([{ file: 'src/components/CheckoutButton.tsx', line: 5, role: 'shows', code: "const stripe = new Stripe('sk_live_fakekeyfortests');", note: 'x' }], secretFiles, null);
+    expect(guessed.verified).toHaveLength(0);
+  });
+});
+
+describe('writeWarning, last checks', () => {
 
   it('never lets a model mark a warning as proven', async () => {
     answers.push(JSON.stringify(warning({ evidence: 'proven' })), JSON.stringify(warning({ evidence: 'proven' })));
@@ -185,7 +262,7 @@ describe('the warning card page', () => {
 
   it('shows the warning label, severity, sections, Copy and the safety-net footer', async () => {
     const html = renderCardHtml(await card());
-    expect(html).toContain('<span class="badge">Warning</span> <span class="severity">High</span>');
+    expect(html).toContain('<span class="badge">Warning</span> <span class="severity">High</span></p>\n  <p class="detected">Potential risk detected</p>');
     expect(html).toContain('<main class="warning sev-high" data-evidence="warning">');
     for (const h of ['What could happen', 'Who’s affected', 'The line', 'Fix it with your AI', 'The idea behind it']) expect(html).toContain(`<h2>${h}</h2>`);
     expect(html).toContain('<button type="button" class="copy" data-copy="fix-prompt">Copy</button>');

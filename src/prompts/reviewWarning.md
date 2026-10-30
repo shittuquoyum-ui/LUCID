@@ -27,11 +27,10 @@ Step 3: check the claims ("wrongClaims")
 - Plain, simplified wording is fine if it is true.
 - For each wrong claim, write one sentence: quote the wrong words and say what is actually true.
 
-Step 4: severity ("severity")
-- Give the severity you would give, judged only on what the change shows:
-  - "high": could let anyone, or any signed-in person, read or change other people's data, use a key with full access, or skip paying.
-  - "medium": harm needs something extra, like knowing or guessing another person's id, or being signed in.
-  - "low": limited harm, or harm that needs an unusual situation.
+Step 4: severity ("severityReasonAccepted")
+- Severity follows fixed rules ("severityByRules"): data exposure and secrets in browser code are high; a missing owner check on an update or delete, an admin route without a role check and a webhook without a signature check are medium; CORS that lets any website call, and anything else, is low.
+- When the warning has "severityProposed" and "severityReason", the first model asked to move it one level. Accept only when the change itself shows the reason is true and does justify the move. A guess about code that is not shown, or a reason that does not fit, is not accepted; the rule's level then stands.
+- When there is no "severityProposed", answer true.
 
 Step 5: the fix prompt ("fixPromptOk", "fixProblem")
 - The builder will paste it into an AI tool as it is. It must name the right file, describe a change that really removes this risk for this exact code, and keep the feature working.
@@ -42,7 +41,7 @@ Answer with JSON only, no other text, in exactly this shape:
 {
   "riskShown": true,
   "wrongClaims": ["The title says anyone can read all your users' data, but the change only turns off the lock on the profiles table."],
-  "severity": "high",
+  "severityReasonAccepted": true,
   "fixPromptOk": true,
   "fixProblem": ""
 }

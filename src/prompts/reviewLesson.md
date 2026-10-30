@@ -10,6 +10,7 @@ Step 1: work out the real difference
 - A line that is removed and then added back unchanged is not a change. Neither is a rule that is dropped and created again with the same effect.
 - Look across files. A rule written into a new file may already exist in another file's BEFORE. If the same behaviour existed before, it is not new.
 - Renames, reordering, comments, formatting and "only create it if it does not exist yet" guards do not change what people using the app see.
+- A rule dropped and created again under the same name ("drop policy if exists X" then "create policy X") is a re-creation. Unless BEFORE shows the old rule and it was different, the change does not prove any new behaviour. Then every claim that something is new or "now" different (in the title too: "Your notes list now checks owners") is wrong; only "this change re-creates the rule" (for example so setup can run twice) is true. A "RE-CREATED RULES" note above the change lists these rules.
 
 Step 2: check the claims ("claimsTrue", "wrongClaims")
 - Check the title, every story paragraph, plainWords, the question, all three options, the marked answer and all three feedback sentences against the real difference and against AFTER.

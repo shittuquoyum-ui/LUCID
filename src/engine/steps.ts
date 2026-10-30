@@ -26,9 +26,10 @@ import { callModel, emptyUsage, type Effort, type Provider, type Usage } from '.
 import { checkPlainEnglish, checkPlainWarning, SAFETY_CLAIM, type PlainCheck } from './plainCheck';
 import { prompt } from './prompts';
 import { checkEvidence, checkLesson, checkQuotes, NO_CHANGE_QUOTED, type CheckedLesson, type CheckedRisk, type LessonCheck } from './quoteCheck';
-import { reviewLesson, reviewWarning, type ReviewCheck, type WarningReviewCheck } from './review';
+import { reviewLesson, reviewWarning, type ReviewCheck, type WarningReviewCheck, type WarningRisk } from './review';
+import { finalSeverity, proposeSeverity, type SeverityCall } from './severity';
 import { ConceptPickSchema, LessonSchema, RiskSchema, type ConceptPick, type Risk, type Severity } from './schemas';
-import { findSignals, signalsForPrompt, type Signal } from './signals';
+import { findSignals, recreatedNote, signalsForPrompt, type Signal } from './signals';
 
 
 export interface Attempt {
@@ -59,7 +60,7 @@ const retryNote = (problems: string[]): string =>
   `\n\nYOUR PREVIOUS ANSWER WAS REJECTED. Fix these problems and return the complete JSON again:\n${problems.map((p) => `- ${p}`).join('\n')}`;
 
 const diffBlock = (files: DiffFile[], title: string | null): string =>
-  [title ? `Change title: ${title}` : null, 'DIFF', LISTING_LEGEND, '', renderListing(files)].filter((x) => x !== null).join('\n');
+  [title ? `Change title: ${title}` : null, recreatedNote(files), 'DIFF', LISTING_LEGEND, '', renderListing(files)].filter((x) => x !== null).join('\n');
 
 // ---------------------------------------------------------------------------
 
@@ -100,8 +101,8 @@ export const pickConcept = async (
       return { pick: parsed.value, attempts, usage };
     } else if (parsed.value.concept === 'none') {
       problems = [`"kind" is "${parsed.value.kind}" but "concept" is "none": pick a concept id from the list, or set "kind" to "none".`];
-    } else if (parsed.value.kind === 'risk' && (!parsed.value.category || !parsed.value.severity)) {
-      problems = ['"kind" is "risk": give its "category" and "severity" too.'];
+    } else if (parsed.value.kind === 'risk' && !parsed.value.category) {
+      problems = ['"kind" is "risk": give its "category" too.'];
     } else if (parsed.value.evidence.length === 0) {
       problems = [`"kind" is "${parsed.value.kind}" but there is no evidence: quote the lines that show it.`];
     } else {
@@ -227,8 +228,9 @@ export const writeLesson = async (
 
 export interface WarningResult {
   warning: CheckedRisk | null;
-  /** The fact checker's severity once it ran (it replaces the picker's); otherwise the picker's. */
+  /** The rules' severity, or the picker's one-level move when the fact checker accepted its reason. */
   severity: Severity;
+  severityCall: SeverityCall;
   check: LessonCheck | null;
   plain: PlainCheck | null;
   review: WarningReviewCheck | null;
@@ -259,10 +261,11 @@ export const writeWarning = async (
 ): Promise<WarningResult> => {
   const system = prompt('writeWarning');
   const concept = conceptById(pick.concept);
-  const risk = { category: pick.category ?? 'other', severity: pick.severity ?? 'medium' };
+  const category = pick.category ?? 'other';
+  const risk: WarningRisk = { category, severity: proposeSeverity(category, pick.severity, pick.severityReason) };
   const evidence = pick.evidence.map((e) => `- ${e.file} line ${e.line} (${e.status}): ${e.code.trim()}`).join('\n');
   const base = [
-    `RISK: ${risk.category}, severity ${risk.severity}`,
+    `RISK: ${risk.category}, severity ${risk.severity.proposed}`,
     `WHY: ${pick.why}`,
     `IDEA BEHIND IT: ${concept?.name ?? pick.concept}. ${concept?.plain ?? ''}`,
     `KEY LINES:\n${evidence}`,
@@ -280,7 +283,8 @@ export const writeWarning = async (
 
   const done = (warning: CheckedRisk | null, check: LessonCheck | null, plain: PlainCheck | null): WarningResult => ({
     warning,
-    severity: lastReview?.severity ?? risk.severity,
+    severity: finalSeverity(risk.severity, lastReview?.severityReasonAccepted ?? false),
+    severityCall: risk.severity,
     check,
     plain: warning ? plain : null,
     review: lastReview,

@@ -23,6 +23,7 @@ export const LISTING_LEGEND = [
   "  '=' = moved: the same line was removed and added back unchanged (here, or from another file in this change). It is NOT a change; treat it as unchanged context",
   "  '-' = removed in this change (no longer exists; the number is its OLD line number)",
   'Lines shown as [hidden by Lucid: ...] were removed for safety and must never be quoted.',
+  "Secret values are masked: a short prefix and dots (sk_live••••). Such a line may be quoted exactly as shown; never guess the hidden part.",
 ].join('\n');
 
 const describe = (f: DiffFile): string => {

@@ -2,8 +2,9 @@
  * What never goes to a model.
  *
  * Before any diff leaves the builder's repo we drop files that teach nothing
- * or might hold secrets (.env, lockfiles, build output, binaries), hide any
- * line that looks like a key or token, and keep only the few files that
+ * or might hold secrets (.env, lockfiles, build output, binaries), mask any
+ * value that looks like a key or token (sk_live_abc… -> sk_live••••; the
+ * line stays, the value never leaves), and keep only the few files that
  * changed the most.
  *
  * This is a precaution, not a guarantee: a secret in an unusual format can
@@ -19,7 +20,7 @@ export interface SkippedFile {
 export interface FilterResult {
   files: DiffFile[];
   skipped: SkippedFile[];
-  /** How many lines were hidden because they looked like secrets. */
+  /** How many lines had a secret masked or were hidden. */
   redacted: number;
 }
 
@@ -38,21 +39,54 @@ export const skipReason = (f: DiffFile): string | null => {
   return null;
 };
 
-const SECRET_LINE: RegExp[] = [
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
-  /\bsk-[A-Za-z0-9_-]{16,}/, // OpenAI / Anthropic style keys
-  /\b(sk|pk|rk)_(live|test)_[A-Za-z0-9]{10,}/, // Stripe
-  /\bAKIA[0-9A-Z]{16}\b/, // AWS access key id
-  /\bgh[pousr]_[A-Za-z0-9]{20,}/, // GitHub tokens
-  /\bgithub_pat_[A-Za-z0-9_]{20,}/,
-  /\bxox[abprs]-[A-Za-z0-9-]{10,}/, // Slack
-  /\bAIza[0-9A-Za-z_-]{30,}/, // Google API key
-  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/, // JWTs, incl. Supabase keys
-  /\b(api[_-]?key|secret|token|password|passwd|private[_-]?key|client[_-]?secret)\b\s*[:=]\s*['"`][^'"`\s]{8,}['"`]/i,
-  /:\/\/[^\s:/@]+:[^\s@/]{6,}@/, // credentials inside a URL
+/** A private key block: the whole line is hidden (the key itself follows on other lines). */
+const PRIVATE_KEY = /-----BEGIN [A-Z ]*PRIVATE KEY-----/;
+
+/**
+ * Secret values. Only the value is masked, so a card can still point at the
+ * line ("the key typed into this file") without ever showing the key. The
+ * value is the whole match, or the group named "v".
+ */
+const SECRET_VALUE: RegExp[] = [
+  /\bsk-[A-Za-z0-9_-]{16,}/g, // OpenAI / Anthropic style keys
+  /\b(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{10,}/g, // Stripe
+  /\bAKIA[0-9A-Z]{16}\b/g, // AWS access key id
+  /\bgh[pousr]_[A-Za-z0-9]{20,}/g, // GitHub tokens
+  /\bgithub_pat_[A-Za-z0-9_]{20,}/g,
+  /\bxox[abprs]-[A-Za-z0-9-]{10,}/g, // Slack
+  /\bAIza[0-9A-Za-z_-]{30,}/g, // Google API key
+  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g, // JWTs, incl. Supabase keys
+  /\b(?:api[_-]?key|secret|token|password|passwd|private[_-]?key|client[_-]?secret)\b\s*[:=]\s*['"`](?<v>[^'"`\s]{8,})['"`]/gi,
+  /:\/\/[^\s:/@]+:(?<v>[^\s@/]{6,})@/g, // credentials inside a URL
 ];
 
-export const looksLikeSecret = (text: string): boolean => SECRET_LINE.some((re) => re.test(text));
+/** What a masked value ends with. */
+export const MASK = '••••';
+/** Vendor prefixes that say what kind of key it is without giving any of it away. */
+const KNOWN_PREFIX = /^(?:sk-(?:proj-|ant-)?|[spr]k_(?:live|test)_|AKIA|gh[pousr]_|github_pat_|xox[abprs]-|AIza|eyJ)/;
+const PREFIX_MAX = 7;
+
+/** "sk_live_abc…" -> "sk_live••••". A value with no known prefix keeps nothing. */
+export const maskValue = (value: string): string => (value.match(KNOWN_PREFIX)?.[0] ?? '').slice(0, PREFIX_MAX) + MASK;
+
+/** A masked value in a line: a short prefix, then exactly the mask (a run of dots in the app's own text is not one). */
+const MASKED = new RegExp(`(?:^|[\\s'"\`=:(,])[^\\s'"\`•]{0,${PREFIX_MAX}}${MASK}(?!•)`);
+export const hasMaskedSecret = (text: string): boolean => MASKED.test(text);
+
+/** The line with every secret value masked (unchanged when there is none). */
+export const maskSecrets = (text: string): string =>
+  SECRET_VALUE.reduce(
+    (out, re) =>
+      out.replace(re, (match: string, ...rest: unknown[]) => {
+        const groups = rest[rest.length - 1];
+        const value = typeof groups === 'object' && groups !== null ? (groups as { v?: string }).v : undefined;
+        const secret = value ?? match;
+        return secret.includes(MASK) ? match : match.replace(secret, maskValue(secret));
+      }),
+    text,
+  );
+
+export const looksLikeSecret = (text: string): boolean => PRIVATE_KEY.test(text) || maskSecrets(text) !== text;
 
 /** What a hidden line shows instead of its text. */
 export const HIDDEN_TEXT = '[hidden by Lucid: looked like a secret]';
@@ -84,9 +118,14 @@ export const filterDiff = (files: DiffFile[], options: FilterOptions = {}): Filt
     const lines = f.lines.map((l) => {
       // Already hidden on the builder's machine: stays hidden, never quotable.
       if (l.text === HIDDEN_TEXT) return { ...l, redacted: true };
-      if (!looksLikeSecret(l.text)) return l;
-      redacted += 1;
-      return { ...l, text: HIDDEN_TEXT, redacted: true };
+      if (PRIVATE_KEY.test(l.text)) {
+        redacted += 1;
+        return { ...l, text: HIDDEN_TEXT, redacted: true };
+      }
+      const text = maskSecrets(l.text);
+      if (text !== l.text) redacted += 1;
+      // Masked here, or already on the builder's machine: quotable as it reads now.
+      return hasMaskedSecret(text) ? { ...l, text, masked: true } : l;
     });
     kept.push({ ...f, lines });
   }

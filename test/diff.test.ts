@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseDiff, shownLine } from '../src/engine/diff';
-import { filterDiff, looksLikeSecret } from '../src/engine/filter';
+import { filterDiff, hasMaskedSecret, HIDDEN_TEXT, looksLikeSecret, maskSecrets } from '../src/engine/filter';
 import { LISTING_LEGEND, renderListing, renderVersions } from '../src/engine/listing';
 import { RECREATED_RULE_DIFF, RLS_DIFF } from './fixtures';
 
@@ -60,12 +60,33 @@ describe('filterDiff', () => {
     );
   });
 
-  it('hides secret-looking lines but keeps their line numbers', () => {
+  it('masks secret values but keeps the line and its line number', () => {
     const ts = result.files.find((f) => f.path === 'src/lib/notes.ts')!;
-    const hidden = ts.lines.find((l) => l.redacted)!;
-    expect(hidden.text).not.toContain('sk-live');
-    expect(hidden.oldLine).toBe(9);
+    const masked = ts.lines.find((l) => l.masked)!;
+    expect(masked.text).toBe("export const ADMIN_KEY = 'sk-••••';");
+    expect(masked.redacted).toBeUndefined();
+    expect(masked.oldLine).toBe(9);
     expect(result.redacted).toBe(1);
+  });
+
+  it('keeps a known key prefix of 7 characters at most, and nothing of an unknown one', () => {
+    const live = ['sk', 'live', 'abcdefghijklmnopqrstuvwx'].join('_');
+    expect(maskSecrets(`const stripe = new Stripe('${live}');`)).toBe("const stripe = new Stripe('sk_live••••');");
+    expect(maskSecrets('const password = "hunter2hunter2";')).toBe('const password = "••••";');
+    expect(maskSecrets('fetch("https://ada:hunter2hunter2@db.example.com")')).toBe('fetch("https://ada:••••@db.example.com")');
+    expect(maskSecrets('eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZSJ9.abcdefghijklmnop')).toBe('eyJ••••');
+    // Masking twice changes nothing, so the server's second filter keeps the line as it came.
+    expect(maskSecrets("const stripe = new Stripe('sk_live••••');")).toBe("const stripe = new Stripe('sk_live••••');");
+  });
+
+  it('tells a masked value from dots the app shows', () => {
+    expect(hasMaskedSecret("new Stripe('sk_live••••')")).toBe(true);
+    expect(hasMaskedSecret('<input placeholder="••••••••" />')).toBe(false);
+  });
+
+  it('still hides a whole private key line', () => {
+    const files = filterDiff(parseDiff(['diff --git a/k.ts b/k.ts', '--- a/k.ts', '+++ b/k.ts', '@@ -1,0 +1,1 @@', '+-----BEGIN RSA PRIVATE KEY-----', ''].join('\n'))).files;
+    expect(files[0]!.lines[0]).toMatchObject({ text: HIDDEN_TEXT, redacted: true });
   });
 
   it('spots common key formats', () => {

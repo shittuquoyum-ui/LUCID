@@ -26,8 +26,10 @@ export interface DiffLine {
   oldLine: number | null;
   /** Line number in the new file; null for removed lines and the old copy of a moved line. */
   newLine: number | null;
-  /** Set by the filter when the line looked like a secret. Never quotable. */
+  /** Set by the filter when the whole line was hidden (a private key). Never quotable. */
   redacted?: boolean;
+  /** Set by the filter when a secret value in the line is masked (sk_live••••). Quotable as masked. */
+  masked?: boolean;
 }
 
 export interface DiffFile {

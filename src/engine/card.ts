@@ -10,6 +10,7 @@ import type { LucidReport } from './lucid';
 import type { Letter } from './quickCheck';
 import type { VerifiedQuote } from './quoteCheck';
 import type { Severity } from './schemas';
+import { RULE_SEVERITY } from './severity';
 import type { RiskCategory } from './signals';
 
 export interface CardQuote {
@@ -101,7 +102,7 @@ export const toCard = (report: LucidReport): Card | null => {
     return {
       kind: 'risk',
       category: pick.category ?? 'other',
-      severity: report.severity ?? pick.severity ?? 'medium',
+      severity: report.severity ?? RULE_SEVERITY[pick.category ?? 'other'],
       // Never taken from the model: a written warning is a warning.
       evidence: 'warning',
       title: warning.title,

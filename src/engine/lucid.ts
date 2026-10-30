@@ -14,6 +14,7 @@ import type { ReviewCheck, WarningReviewCheck } from './review';
 import { findSignals, type Signal } from './signals';
 import { pickConcept, writeLesson, writeWarning, type Attempt } from './steps';
 import type { ConceptPick, Severity } from './schemas';
+import type { SeverityCall } from './severity';
 import type { CheckedLesson, CheckedRisk, LessonCheck } from './quoteCheck';
 
 export type CardKind = 'risk' | 'lesson';
@@ -38,8 +39,10 @@ export interface LucidReport {
   lesson: CheckedLesson | null;
   /** The warning card's content; only when the outcome is 'warning'. */
   warning: CheckedRisk | null;
-  /** The warning's severity: the fact checker's, once it ran. */
+  /** The warning's severity: the rules', or the picker's one-level move when the fact checker accepted its reason. */
   severity: Severity | null;
+  /** How the severity was decided. */
+  severityCall: SeverityCall | null;
   pick: ConceptPick | null;
   /** What the pattern checks saw, before the picker. */
   signals: Signal[];
@@ -75,6 +78,7 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
     lesson: null,
     warning: null,
     severity: null,
+    severityCall: null,
     pick: null,
     signals: [],
     check: null,
@@ -123,6 +127,7 @@ export const runLucid = async (input: LucidInput): Promise<LucidReport> => {
     report.plain = written.plain;
     report.warningReview = written.review;
     report.severity = written.severity;
+    report.severityCall = written.severityCall;
     if (!written.warning) return finish({ outcome: 'warning-failed' });
     return finish({ outcome: 'warning', warning: written.warning });
   }
