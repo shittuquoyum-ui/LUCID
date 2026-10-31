@@ -2,15 +2,16 @@
  * The prover's integration test: runs the real prover (Modal sandbox,
  * Muse Spark attacker, Baseten judge) on the prover-app fixtures.
  *
- *   npm run -s prove:fixtures                  all of them, a–n
+ *   npm run -s prove:fixtures                  all of them, a–q
  *   npm run -s prove:fixtures -- a c           some
  *   npm run -s prove:fixtures -- --runs 5      each one five times
  *   npm run -s prove:fixtures -- --probes-only the standard probes alone, no attacker model
  *
  * a, b and c must come back "proven" with BEFORE blocked. f, g, h and i must
  * too, found by the attacker model: with --probes-only they must NOT be
- * proven, which is what shows the attacker earned them. d, e and j–n must
- * not be proven. Exits with 1 when any fixture does not.
+ * proven, which is what shows the attacker earned them. q must be proven: a
+ * table of emails and phones. d, e, j–n, o and p must not be, o and p being
+ * tables opened on purpose. Exits with 1 when any fixture does not.
  */
 import { prove, type ProofResult } from '../src/prover/prove';
 import { PROVER_COMMITS, proverCommit, type CommitLetter } from '../test/proverFixtures';

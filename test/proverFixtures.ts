@@ -28,7 +28,11 @@ export const PROVER_COMMITS = {
   l: { file: 'l-note-versions-owner.sql', expect: 'not-proven' },
   m: { file: 'm-published-notes-view.sql', expect: 'not-proven' },
   n: { file: 'n-insert-right-column.sql', expect: 'not-proven' },
-} as const satisfies Record<string, { file: string; expect: 'proven' | 'not-proven'; needsAgent?: boolean }>;
+  // A table closed before the commit, opened on purpose; then one opened with emails and phones in it.
+  o: { file: 'o-leaderboard-public.sql', expect: 'not-proven', extra: 'leaderboard.sql' },
+  p: { file: 'p-public-profiles-open.sql', expect: 'not-proven', extra: 'public-profiles.sql' },
+  q: { file: 'q-profiles-emails-opened.sql', expect: 'proven' },
+} as const satisfies Record<string, { file: string; expect: 'proven' | 'not-proven'; needsAgent?: boolean; extra?: string }>;
 
 export type CommitLetter = keyof typeof PROVER_COMMITS;
 
@@ -47,10 +51,12 @@ export const newFileDiff = (path: string, text: string): string => {
 
 /** The commit adds one migration. Its diff, BEFORE, AFTER and the touched tables. */
 export const proverCommit = (letter: CommitLetter): { diff: string; before: SetupFile[]; after: SetupFile[]; touched: Touched } => {
-  const { file } = PROVER_COMMITS[letter];
+  const commit = PROVER_COMMITS[letter];
+  const { file } = commit;
   const text = readFileSync(join(dir, 'commits', file), 'utf8');
   const path = `supabase/migrations/20261030120000_${file.replace(/^\w-/, '').replace(/-/g, '_')}`;
   const diff = newFileDiff(path, text);
-  const before = baseFiles();
+  const extra = 'extra' in commit ? [{ path: 'supabase/migrations/20261002000000_extra.sql', text: readFileSync(join(dir, 'extra', commit.extra), 'utf8') }] : [];
+  const before = [...baseFiles(), ...extra];
   return { diff, before, after: [...before, { path, text }], touched: touchedObjects(parseDiff(diff)) };
 };

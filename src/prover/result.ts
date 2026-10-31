@@ -25,6 +25,8 @@ export interface ProofResult {
   /** Why there is no proof (or what went wrong). */
   reason: string | null;
   judge: Verdict | null;
+  /** The read worked, on data that looks meant for everyone. No proof; the card says what the change does. */
+  publicRead?: boolean;
   /** A short account of what the prover tried. */
   summary: string;
   /** Every tool call, in order (outputs trimmed). */

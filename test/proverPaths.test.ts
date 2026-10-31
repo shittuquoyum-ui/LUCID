@@ -15,10 +15,12 @@ vi.mock('../src/engine/model', async (importOriginal) => {
   };
 });
 
-const { attack, changesBetween } = await import('../src/prover/attack');
+const { attack, changesBetween, columnsIn } = await import('../src/prover/attack');
+const { callRead, privateNames } = await import('../src/prover/intent');
+const { addedSetupText } = await import('../src/prover/setupFiles');
 const { prove, PROOF_STATEMENT } = await import('../src/prover/prove');
 const { parseDatabase } = await import('../src/prover/schema');
-const { applyProof, NOT_REPRODUCED_NOTE, proofSentence } = await import('../src/engine/card');
+const { applyProof, NOT_REPRODUCED_NOTE, proofSentence, publicNote } = await import('../src/engine/card');
 const { renderCardHtml } = await import('../src/ui/cardHtml');
 const { askProve, cardAfterProof, proveRequest, touchesDatabase, wantsProof } = await import('../extension/src/prove');
 const { provenToast } = await import('../extension/src/messages');
@@ -183,15 +185,16 @@ describe('the privacy judge is told how the row came back', () => {
   const read = { actor: 'bob' as const, action: 'read' as const, table: 'notes', rows: 1, query: 'select * from public.notes_feed', by: 'attacker' as const };
 
   it('says when the table’s own rule hides the row, and what it came through', () => {
-    const input = JSON.parse(judgeInput(notes, { ...read, hiddenByTableRule: true }, { through: ['view notes_feed: SELECT id FROM notes;'], blockedBefore: true }));
-    expect(input).toMatchObject({ query: 'select * from public.notes_feed', hiddenByTableRule: true, blockedBefore: true, through: ['view notes_feed: SELECT id FROM notes;'] });
+    const input = JSON.parse(judgeInput(notes, { ...read, hiddenByTableRule: true }, { through: ['view notes_feed: SELECT id FROM notes;'], commit: 'create view public.notes_feed' }));
+    expect(input).toMatchObject({ query: 'select * from public.notes_feed', hiddenByTableRule: true, commit: 'create view public.notes_feed', through: ['view notes_feed: SELECT id FROM notes;'] });
+    // A table closed before the commit proves nothing: the judge is not told.
+    expect(input).not.toHaveProperty('blockedBefore');
   });
 
   it('says nothing of the kind for a plain read', () => {
     const input = JSON.parse(judgeInput(notes, { ...read, by: 'probe', query: 'select * from public."notes";' }));
     expect(input).not.toHaveProperty('hiddenByTableRule');
     expect(input).not.toHaveProperty('through');
-    expect(input).not.toHaveProperty('blockedBefore');
   });
 
   it('marks a hit by the attacker model only when the plain read of that table failed', async () => {
@@ -203,6 +206,110 @@ describe('the privacy judge is told how the row came back', () => {
     const open = await attack(context(scripted(() => `1\t${users.canary}-notes-title`)));
     expect(open.evidence).toMatchObject({ by: 'probe' });
     expect(open.evidence?.hiddenByTableRule).toBeUndefined();
+  });
+});
+
+describe('a table opened on purpose', () => {
+  const tableOf = (name: string, columns: string[], policies: string[] = []): TableInfo => ({
+    name,
+    rls: true,
+    columns: columns.map((c) => ({ name: c, type: 'text', notNull: false, hasDefault: false, enum: null })),
+    fks: [],
+    policies: policies.map((p) => ({ name: p, command: 'SELECT', roles: ['public'], using: 'true', withCheck: null })),
+  });
+  const reach = (table: TableInfo, over: Partial<Parameters<typeof callRead>[0]> = {}, evidence: object = {}) =>
+    callRead({ table, routes: [], commit: '', ...over, evidence: { actor: 'anon', action: 'read', table: table.name, rows: 1, query: 'q', by: 'probe', columns: table.columns.map((c) => c.name), ...evidence } });
+
+  it('takes a name, a rule from this commit, or a comment as intent to publish', () => {
+    expect(reach(tableOf('leaderboard', ['id', 'player']))).toEqual({ kind: 'publish', signal: 'the name leaderboard' });
+    expect(reach(tableOf('public_profiles', ['id', 'full_name']))).toEqual({ kind: 'publish', signal: 'the name public_profiles' });
+    expect(reach(tableOf('posts', ['id', 'title'], ['posts are public']), { commit: 'create policy "posts are public"' }).kind).toBe('publish');
+    expect(reach(tableOf('posts', ['id', 'title']), { commit: '-- Anyone can read these on the blog.\ncreate policy x' }).kind).toBe('publish');
+  });
+
+  it('takes columns that all look public as intent', () => {
+    expect(reach(tableOf('cards', ['id', 'display_name', 'avatar_url', 'created_at'])).kind).toBe('publish');
+  });
+
+  it('is not fooled by a rule from an earlier commit, or by the rule merely opening the table', () => {
+    expect(reach(tableOf('posts', ['id', 'title'], ['posts are public']), { commit: 'alter table posts add column x text;' }).kind).toBe('unclear');
+    expect(reach(tableOf('tasks', ['id', 'title'], ['anyone can read tasks']), { commit: 'create policy "anyone can read tasks"' }).kind).toBe('unclear');
+  });
+
+  it('keeps private-looking data private, whatever the commit calls it', () => {
+    expect(reach(tableOf('public_profiles', ['id', 'display_name', 'email']))).toEqual({ kind: 'private', names: ['email'] });
+    expect(reach(tableOf('profiles', ['id', 'full_name', 'phone']), { commit: '-- public profile pages' }).kind).toBe('private');
+    expect(reach(tableOf('notes', ['id', 'title']), { commit: 'create policy "anyone can read notes"' }).kind).toBe('private');
+    expect(reach(tableOf('orders', ['id', 'shipping_address'])).kind).toBe('private');
+    expect(reach(tableOf('private_items', ['id', 'title'])).kind).toBe('private');
+  });
+
+  it('judges what came back, not the whole table', () => {
+    const profiles = tableOf('profiles', ['id', 'display_name', 'avatar_url', 'email', 'phone']);
+    expect(reach(profiles, { routes: ['public_authors'] }, { columns: ['display_name', 'avatar_url'], hiddenByTableRule: true }).kind).toBe('publish');
+    expect(reach(profiles, { routes: ['public_authors'] }, { columns: ['display_name', 'email'], hiddenByTableRule: true }).kind).toBe('private');
+  });
+
+  it('does not read links or flags as private content', () => {
+    expect(privateNames('scores', ['note_id', 'is_private', 'email_verified', 'score'])).toEqual([]);
+    expect(privateNames('published_notes', ['title'])).toEqual([]);
+  });
+
+  it('does not let a table’s name excuse a row its own rule hides', () => {
+    const posts = tableOf('published_posts', ['id', 'title']);
+    expect(reach(posts, { routes: ['post_feed'] }, { hiddenByTableRule: true }).kind).toBe('unclear');
+  });
+
+  it('finds what the commit added, comments included', () => {
+    const before = [{ path: 'a.sql', text: 'create table a();\nselect 1;' }];
+    expect(addedSetupText(before, [...before, { path: 'b.sql', text: '-- public page\nselect 1;\nselect 2;' }])).toBe('-- public page\nselect 2;');
+  });
+
+  it('reads the columns from the answer’s header, never from an error', () => {
+    expect(columnsIn('id\ttitle\n1\tx')).toEqual(['id', 'title']);
+    expect(columnsIn('ERROR:  permission denied\nid\tname\n1\tx')).toEqual(['id', 'name']);
+    expect(columnsIn('')).toEqual([]);
+  });
+
+  /** A whole proof on one table, with no model anywhere: anon reads Alice's row after the commit, and nothing before it. */
+  const proofOn = async (table: TableInfo) => {
+    vi.mocked(callModel).mockClear();
+    const sandbox: Sandbox = {
+      start: async () => undefined,
+      stop: async () => undefined,
+      psql: async (c) => {
+        if (c.user === 'postgres') return { code: 0, out: `${JSON.stringify({ tables: [table] })}\n${table.name}\t1\t1\tt`, ms: 1 };
+        const [role, uid] = whoFor(c.user);
+        const leaked = c.db === 'after' && c.user === 'anon';
+        const answer = `${table.columns.map((x) => x.name).join('\t')}\n${leaked ? `1\t${users.canary}-${table.name}-x\n` : ''}`;
+        const body = c.sql.includes('LUCID-Q0') ? `LUCID-Q0\n${answer}` : answer;
+        return { code: 0, out: `${body}\n?column?\tcurrent_user\tcoalesce\nLUCID-END\t${role}\t${uid}`, ms: 1 };
+      },
+    };
+    table.fks = [{ column: 'user_id', refTable: 'auth.users', refColumn: 'id' }];
+    const file = (text: string) => [{ path: 'supabase/migrations/1.sql', text }];
+    return prove({ before: file('select 1;'), after: [...file('select 1;'), { path: 'supabase/migrations/2.sql', text: 'select 2;' }], touched: { tables: [table.name], policies: [], views: [], functions: [] } }, { sandbox: () => sandbox, users, maxAgentCalls: 0 });
+  };
+
+  it('never proves a leaderboard, though it was blocked before, and the card says so', async () => {
+    const r = await proofOn(tableOf('leaderboard', ['id', 'user_id', 'display_name', 'score']));
+    expect(r.status).toBe('not-reproduced');
+    expect(r.publicRead).toBe(true);
+    expect(callModel).not.toHaveBeenCalled();
+    const w = applyProof(card, r);
+    expect(w.evidence).toBe('warning');
+    expect(w.proofNote).toBe("This change makes `leaderboard` readable by anyone. If that's intended, you can ignore this.");
+    expect(renderCardHtml(w)).toContain('<span class="badge">Warning</span>');
+  });
+
+  it('still proves a table of emails and phones, with no model needed', async () => {
+    const r = await proofOn(tableOf('profiles', ['id', 'user_id', 'email', 'phone']));
+    expect(r).toMatchObject({ status: 'proven', before: 'blocked', table: 'profiles' });
+    expect(callModel).not.toHaveBeenCalled();
+  });
+
+  it('says "anyone signed in" when only signed-in people could read it', () => {
+    expect(publicNote('leaderboard', 'bob')).toBe("This change makes `leaderboard` readable by anyone signed in. If that's intended, you can ignore this.");
   });
 });
 

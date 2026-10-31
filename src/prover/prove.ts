@@ -23,6 +23,7 @@ import { parseWith } from '../engine/json';
 import { callModel, emptyUsage, type Provider, type Usage } from '../engine/model';
 import { prompt } from '../engine/prompts';
 import { attack, canaryRowsIn, changesBetween, runAs, type Evidence, type ToolCall } from './attack';
+import { callRead } from './intent';
 import { downgrade, judgePrivacy, type Verdict } from './judge';
 import type { BeforeState, ProofResult, ProofStatus } from './result';
 import { modalSandbox, type Sandbox } from './sandbox';
@@ -41,7 +42,7 @@ import {
   type SeedTarget,
   type TableInfo,
 } from './schema';
-import { orderSetupFiles, type SetupFile, type Touched } from './setupFiles';
+import { addedSetupText, orderSetupFiles, type SetupFile, type Touched } from './setupFiles';
 import { CLUSTER_SHIM, DATABASE_SHIM } from './shim';
 import { isRefusal, prepareSetupSql } from './sqlSafety';
 
@@ -179,40 +180,49 @@ const runProof = async (input: ProveInput, options: ProveOptions): Promise<Proof
     const targets = [...touched, ...ready.filter((t) => !touched.includes(t))];
 
     // Every hit the ground truth confirms is weighed here, in order:
-    //   1. the same query on the database as it was before the commit, which
-    //      the judge is told: this commit's own new rule is no evidence that
-    //      rows it just opened were meant for everyone;
-    //   2. a read of data clearly meant for everyone is no proof (the judge);
-    //   3. a hit that worked before too is kept aside, and the attack looks on
-    //      for something this commit opened.
+    //   1. a read: private-looking names stand, a clear intent to publish is
+    //      no proof, and the judge decides the rest (see intent.ts);
+    //   2. the same query on the database as it was before the commit: a hit
+    //      that worked before too is kept aside, and the attack looks on for
+    //      something this commit opened.
     let found: { evidence: Evidence; verdict: Verdict | null; before: BeforeState } | null = null;
     let openBefore: { evidence: Evidence; verdict: Verdict | null } | null = null;
     let publicData: { evidence: Evidence; verdict: Verdict | null; reason: string | null } | null = null;
     const verdicts = new Map<string, Verdict | null>();
+    const commit = addedSetupText(input.before, input.after);
     const consider = async (evidence: Evidence): Promise<'keep' | 'skip'> => {
+      let verdict: Verdict | null = null;
+      if (evidence.action === 'read') {
+        const table = after.tables.find((t) => t.name === evidence.table)!;
+        const views = after.views.filter((v) => evidence.query.includes(v.name));
+        const functions = after.functions.filter((f) => evidence.query.includes(f.name));
+        const call = callRead({ table, evidence, routes: [...views, ...functions].map((r) => r.name), commit });
+        if (call.kind === 'publish') {
+          publicData ??= { evidence, verdict: null, reason: `the commit looks meant to publish this: ${call.signal}` };
+          return 'skip';
+        }
+        if (call.kind === 'unclear') {
+          const judgeStarted = Date.now();
+          const key = `${evidence.table}\n${evidence.columns?.join()}\n${evidence.hiddenByTableRule ? evidence.query : ''}`;
+          if (!verdicts.has(key)) {
+            const through = [
+              ...views.map((v) => `view ${v.name} (security_invoker ${v.securityInvoker ? 'on' : 'off'}): ${v.definition}`),
+              ...functions.map((f) => `function ${f.name}(${f.args}): ${f.source}`),
+            ];
+            verdicts.set(key, await judgePrivacy(table, evidence, judgeProvider, usage.judge, { through, commit }));
+          }
+          verdict = verdicts.get(key) ?? null;
+          timings.judgeMs += Date.now() - judgeStarted;
+          const kept = downgrade(evidence, verdict);
+          if (!kept.keep) {
+            publicData ??= { evidence, verdict, reason: kept.reason };
+            return 'skip';
+          }
+        }
+      }
       const beforeStarted = Date.now();
       const before = await replayBefore(evidence).catch((): BeforeState => 'error');
       timings.beforeMs += Date.now() - beforeStarted;
-      let verdict: Verdict | null = null;
-      if (evidence.action === 'read') {
-        const judgeStarted = Date.now();
-        const key = `${evidence.table}\n${before}\n${evidence.hiddenByTableRule ? evidence.query : ''}`;
-        if (!verdicts.has(key)) {
-          const table = after.tables.find((t) => t.name === evidence.table)!;
-          const through = [
-            ...after.views.filter((v) => evidence.query.includes(v.name)).map((v) => `view ${v.name} (security_invoker ${v.securityInvoker ? 'on' : 'off'}): ${v.definition}`),
-            ...after.functions.filter((f) => evidence.query.includes(f.name)).map((f) => `function ${f.name}(${f.args}): ${f.source}`),
-          ];
-          verdicts.set(key, await judgePrivacy(table, evidence, judgeProvider, usage.judge, { through, blockedBefore: before === 'blocked' }));
-        }
-        verdict = verdicts.get(key) ?? null;
-        timings.judgeMs += Date.now() - judgeStarted;
-        const kept = downgrade(evidence, verdict);
-        if (!kept.keep) {
-          publicData ??= { evidence, verdict, reason: kept.reason };
-          return 'skip';
-        }
-      }
       if (before === 'leaked') {
         openBefore ??= { evidence, verdict };
         return 'skip';
@@ -262,7 +272,7 @@ const runProof = async (input: ProveInput, options: ProveOptions): Promise<Proof
     const shown = publicData as { evidence: Evidence; verdict: Verdict | null; reason: string | null } | null;
     if (shown) {
       const e = shown.evidence;
-      return result({ status: 'not-reproduced', table: e.table, role: e.actor, action: e.action, rows: e.rows, query: e.query, foundBy: e.by, judge: shown.verdict, reason: shown.reason, summary: summarize(log, null) });
+      return result({ status: 'not-reproduced', table: e.table, role: e.actor, action: e.action, rows: e.rows, query: e.query, foundBy: e.by, judge: shown.verdict, reason: shown.reason, publicRead: true, summary: summarize(log, null) });
     }
     return result({ status: 'not-reproduced', reason: Date.now() > deadline ? "ran out of time before reaching Alice's rows" : "no query reached Alice's rows" });
   } catch (err) {

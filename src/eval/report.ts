@@ -43,6 +43,8 @@ export interface EvalProof {
   table: string | null;
   query: string | null;
   reason: string | null;
+  /** The read worked on data that looks meant for everyone. */
+  publicRead: boolean;
   agentCalls: number;
   ms: number;
   usage: { attacker: Usage; judge: Usage };
@@ -151,7 +153,7 @@ const cell = (v: string | null | undefined) => (v ?? '-').replace(/\|/g, '\\|').
 const proofCell = (r: EvalRow): string => {
   if (!r.proof) return '-';
   if (r.proof.status === 'error') return 'error';
-  if (r.proof.status !== 'proven') return 'no';
+  if (r.proof.status !== 'proven') return r.proof.publicRead ? 'no (looks meant to be public)' : 'no';
   return `yes (${r.proof.foundBy}, ${r.gated ? 'in product' : 'prover alone'})`;
 };
 

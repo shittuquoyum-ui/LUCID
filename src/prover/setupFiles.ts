@@ -51,6 +51,12 @@ export const prepareSetupFiles = (files: SetupFile[]): SetupFile[] | null => {
   return setupBytes(chosen) > SETUP_MAX_BYTES ? null : chosen;
 };
 
+/** The lines this commit added to the setup: what it says, comments included. */
+export const addedSetupText = (before: SetupFile[], after: SetupFile[]): string => {
+  const old = new Set(before.flatMap((f) => f.text.split('\n').map((l) => l.trim())));
+  return after.flatMap((f) => f.text.split('\n').filter((l) => l.trim() && !old.has(l.trim()))).join('\n');
+};
+
 // --- what the commit touched -----------------------------------------------------
 
 export interface Touched {

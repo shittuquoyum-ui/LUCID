@@ -1,9 +1,9 @@
 /**
  * The judge: after the ground truth shows someone else could read Alice's
- * rows, a second model (Muse Spark Open, Baseten) looks at the table's
- * columns and rules and says whether this is data that should be private
- * (emails, phone numbers, payments, private notes) or data clearly meant for
- * everyone (published posts, a product list). Clearly public means no proof.
+ * rows, and plain code could not settle it (see intent.ts), a second model
+ * (Muse Spark Open, Baseten) looks at the table's columns and rules and the
+ * commit, and says whether this is data clearly meant for everyone (published
+ * posts, a product list). Clearly public means no proof.
  *
  * Only reads are judged: changing or deleting someone else's row is never
  * fine, whatever the table holds.
@@ -28,8 +28,8 @@ export interface Verdict {
 export interface JudgeFacts {
   /** The definitions of the views and functions the query used, if any. */
   through?: string[];
-  /** The same query was blocked on the database as it was before this commit. */
-  blockedBefore?: boolean;
+  /** The setup lines this commit added. */
+  commit?: string;
 }
 
 export const judgeInput = (table: TableInfo, evidence: Evidence, facts: JudgeFacts = {}): string =>
@@ -42,7 +42,7 @@ export const judgeInput = (table: TableInfo, evidence: Evidence, facts: JudgeFac
       query: evidence.query,
       ...(facts.through?.length ? { through: facts.through } : {}),
       ...(evidence.hiddenByTableRule ? { hiddenByTableRule: true } : {}),
-      ...(facts.blockedBefore ? { blockedBefore: true } : {}),
+      ...(facts.commit ? { commit: facts.commit.slice(0, 4000) } : {}),
     },
     null,
     2,

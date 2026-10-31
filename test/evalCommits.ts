@@ -36,6 +36,7 @@ const DATABASE: { letter: CommitLetter; id: string; label: EvalCommit['label']; 
   { letter: 'g', id: 'hard-g-definer-function', label: 'risky', what: 'security definer function with no caller check' },
   { letter: 'h', id: 'hard-h-insert-wrong-column', label: 'risky', what: 'insert rule checks the wrong column' },
   { letter: 'i', id: 'hard-i-view', label: 'risky', what: 'view that skips row level security' },
+  { letter: 'q', id: 'profiles-emails-opened', label: 'risky', what: 'table with emails and phones opened, under a "public" name' },
   { letter: 'd', id: 'safe-invoices-owner-rules', label: 'safe', what: 'new table with owner-only rules' },
   { letter: 'e', id: 'safe-public-blog', label: 'safe', what: 'genuinely public table' },
   { letter: 'j', id: 'safe-invoker-view', label: 'safe', what: 'view with security_invoker on' },
@@ -43,6 +44,8 @@ const DATABASE: { letter: CommitLetter; id: string; label: EvalCommit['label']; 
   { letter: 'l', id: 'safe-versions-owner', label: 'safe', what: 'version history with an owner rule' },
   { letter: 'm', id: 'safe-published-view', label: 'safe', what: 'view of rows marked public only' },
   { letter: 'n', id: 'safe-insert-right-column', label: 'safe', what: 'insert rule that checks the owner' },
+  { letter: 'o', id: 'safe-leaderboard-opened', label: 'safe', what: 'leaderboard opened on purpose' },
+  { letter: 'p', id: 'safe-public-profiles-opened', label: 'safe', what: 'public_profiles opened: display name and avatar only' },
 ];
 
 const DIFFS: { file: string; label: EvalCommit['label']; what: string }[] = [

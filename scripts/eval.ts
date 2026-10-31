@@ -130,6 +130,7 @@ const proofRow = (r: ProofResult): EvalProof => ({
   table: r.table,
   query: r.query,
   reason: r.reason,
+  publicRead: !!r.publicRead,
   agentCalls: r.log.filter((c) => c.by === 'attacker').length,
   ms: r.timings.totalMs,
   usage: r.usage,

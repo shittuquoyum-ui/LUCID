@@ -187,7 +187,7 @@ describe('ground truth', () => {
   it('proves a read only when Alice’s canary came back', async () => {
     const leaky = fakeSandbox((user) => (user === 'anon' ? `id\ttitle\n1\t${users.canary}-notes-title` : 'id\ttitle'));
     const outcome = await attack(context(leaky));
-    expect(outcome.evidence).toEqual({ actor: 'anon', action: 'read', table: 'notes', rows: 1, query: 'select * from public."notes";', by: 'probe' });
+    expect(outcome.evidence).toEqual({ actor: 'anon', action: 'read', table: 'notes', rows: 1, query: 'select * from public."notes";', by: 'probe', columns: ['id', 'title'] });
   });
 
   it('keeps searching past a hit that was already open before the commit', async () => {
@@ -296,6 +296,6 @@ describe('POST /prove', () => {
   });
 
   it('knows every fixture', () => {
-    expect(Object.keys(PROVER_COMMITS)).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n']);
+    expect(Object.keys(PROVER_COMMITS)).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q']);
   });
 });

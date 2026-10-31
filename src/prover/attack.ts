@@ -48,6 +48,8 @@ export interface Evidence {
   query: string;
   /** Who wrote the query that worked. */
   by: 'probe' | 'attacker';
+  /** The columns the answer held, from its header; only on a read. */
+  columns?: string[];
   /** A read that came back although this person's plain read of the table did not: the table's own rule hides the row from them. */
   hiddenByTableRule?: boolean;
 }
@@ -98,6 +100,9 @@ const NOISE = /^(psql:|LINE \d+:|ERROR:|DETAIL:|HINT:|CONTEXT:|NOTICE:|WARNING:|
 /** Lines of real answer rows that carry the canary (error messages that echo a query never count). */
 export const canaryRowsIn = (output: string, canary: string): number =>
   output.split('\n').filter((l) => l.includes(canary) && !NOISE.test(l)).length;
+
+/** The column names of an answer: its first line that is not a message. */
+export const columnsIn = (output: string): string[] => output.split('\n').find((l) => l.trim() && !NOISE.test(l))?.split('\t') ?? [];
 
 /** Which table the leaked canary came from: seeded values read CANARY-…-<table>-<column>. */
 export const tableOfCanary = (output: string, canary: string, targets: SeedTarget[]): string | null => {
@@ -187,7 +192,7 @@ export const attack = async (ctx: AttackContext): Promise<AttackOutcome> => {
         record({ tool: 'run_as', by: 'probe', actor, table: a.table, sql: a.sql, output: a.output, ms: Math.round(batch.ms / batch.answers.length), canaryRows: canaryRowsIn(a.output, u.canary) }),
       );
       for (const hit of calls.filter((c) => c.canaryRows > 0)) {
-        const evidence: Evidence = { actor, action: 'read', table: hit.table!, rows: hit.canaryRows, query: hit.sql!, by: 'probe' };
+        const evidence: Evidence = { actor, action: 'read', table: hit.table!, rows: hit.canaryRows, query: hit.sql!, by: 'probe', columns: columnsIn(hit.output) };
         if ((await consider(evidence)) === 'keep') return done(evidence);
       }
     }
@@ -340,7 +345,7 @@ const runAgent = async (
     transcript.push(`run_as(${actor}): ${sql}\n${output.split(ctx.users.canary).join('<alice-data>').slice(0, 1500) || '(no rows)'}`);
     if (call.canaryRows > 0) {
       const table = tableOfCanary(output, ctx.users.canary, ctx.targets) ?? ctx.targets[0]!.table;
-      const kept = await offer({ actor, action: 'read', table, rows: call.canaryRows, query: sql, by: 'attacker', hiddenByTableRule: !plainReadOpen(actor, table) });
+      const kept = await offer({ actor, action: 'read', table, rows: call.canaryRows, query: sql, by: 'attacker', columns: columnsIn(output), hiddenByTableRule: !plainReadOpen(actor, table) });
       if (kept) return kept;
     }
     // After every query, not only ones that read like writes: a function can write too.

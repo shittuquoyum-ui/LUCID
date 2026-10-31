@@ -9,7 +9,7 @@ const usage = (input: number, output: number) => ({ calls: 1, input, output, rea
 const meta = { date: '2026-10-31', gitSha: 'abc1234', models: 'm', where: 'Here', concurrency: 4, priceNote: 'guesses.' };
 
 const proof = (over: Partial<EvalProof> = {}): EvalProof => ({
-  status: 'proven', foundBy: 'attacker', before: 'blocked', action: 'read', role: 'bob', table: 'notes', query: 'select 1', reason: null, agentCalls: 3, ms: 10_000,
+  status: 'proven', foundBy: 'attacker', before: 'blocked', action: 'read', role: 'bob', table: 'notes', query: 'select 1', reason: null, publicRead: false, agentCalls: 3, ms: 10_000,
   usage: { attacker: usage(1000, 1000), judge: usage(0, 0) },
   ...over,
 });

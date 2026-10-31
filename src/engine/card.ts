@@ -95,6 +95,10 @@ export type Card = LessonCard | WarningCard;
 
 export const NOT_REPRODUCED_NOTE = "Lucid couldn't reproduce this in its sandbox. That doesn't mean it's safe.";
 
+/** The line on a warning when the read worked but the data looks meant for everyone. */
+export const publicNote = (table: string, role: ProofResult['role']): string =>
+  `This change makes \`${table}\` readable by ${role === 'bob' ? 'anyone signed in' : 'anyone'}. If that's intended, you can ignore this.`;
+
 const BEFORE_WORDS: Record<ProofResult['before'], string> = {
   blocked: 'blocked',
   leaked: 'also open',
@@ -137,7 +141,7 @@ export const applyProof = (card: WarningCard, result: ProofResult): WarningCard 
       proofNote: undefined,
     };
   }
-  return { ...card, proofNote: NOT_REPRODUCED_NOTE };
+  return { ...card, proofNote: result.publicRead && result.table ? publicNote(result.table, result.role) : NOT_REPRODUCED_NOTE };
 };
 
 const quote = (q: VerifiedQuote): CardQuote => ({ file: q.file, line: q.line, endLine: q.endLine, code: q.code, link: q.link });
