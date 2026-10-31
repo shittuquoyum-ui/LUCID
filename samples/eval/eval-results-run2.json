@@ -1,0 +1,2164 @@
+{
+  "summary": {
+    "commits": 43,
+    "errors": [],
+    "risky": {
+      "total": 21,
+      "caught": 20,
+      "missed": [
+        "held-team-join"
+      ]
+    },
+    "safe": {
+      "total": 22,
+      "warned": 0,
+      "falseWarnings": []
+    },
+    "proofs": {
+      "provable": 10,
+      "inProduct": 10,
+      "proverAlone": 10,
+      "byProbe": 4,
+      "byAttacker": 6,
+      "errors": [],
+      "falseProofsInProduct": [],
+      "falseProofsProverAlone": []
+    },
+    "time": {
+      "warningMedianMs": 15960,
+      "warningP90Ms": 52771,
+      "totalMedianMs": 21491,
+      "totalP90Ms": 53470,
+      "proofMedianMs": 58597,
+      "proofP90Ms": 79444
+    },
+    "tokens": {
+      "total": 956021,
+      "perCommit": 22233
+    },
+    "cost": {
+      "total": 2.42020318376,
+      "perCommit": 0.05628379497116279
+    }
+  },
+  "rows": [
+    {
+      "id": "rls-off",
+      "label": "risky",
+      "what": "row level security turned off",
+      "source": "authored",
+      "provable": true,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "proven",
+        "foundBy": "probe",
+        "before": "blocked",
+        "action": "read",
+        "role": "anon",
+        "table": "notes",
+        "query": "select * from public.\"notes\";",
+        "reason": null,
+        "agentCalls": 0,
+        "ms": 3527,
+        "usage": {
+          "attacker": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          },
+          "judge": {
+            "calls": 1,
+            "input": 962,
+            "output": 169,
+            "reasoning": 116
+          }
+        }
+      },
+      "warningMs": 14564,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2475,
+          "output": 253,
+          "reasoning": 111
+        },
+        "write": {
+          "calls": 1,
+          "input": 1889,
+          "output": 2205,
+          "reasoning": 1814
+        },
+        "review": {
+          "calls": 1,
+          "input": 1842,
+          "output": 230,
+          "reasoning": 183
+        }
+      }
+    },
+    {
+      "id": "using-true",
+      "label": "risky",
+      "what": "read rule changed to using (true)",
+      "source": "authored",
+      "provable": true,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "proven",
+        "foundBy": "probe",
+        "before": "blocked",
+        "action": "read",
+        "role": "anon",
+        "table": "notes",
+        "query": "select * from public.\"notes\";",
+        "reason": null,
+        "agentCalls": 0,
+        "ms": 4043,
+        "usage": {
+          "attacker": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          },
+          "judge": {
+            "calls": 1,
+            "input": 958,
+            "output": 271,
+            "reasoning": 215
+          }
+        }
+      },
+      "warningMs": 10968,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2538,
+          "output": 452,
+          "reasoning": 259
+        },
+        "write": {
+          "calls": 1,
+          "input": 1928,
+          "output": 1630,
+          "reasoning": 1260
+        },
+        "review": {
+          "calls": 1,
+          "input": 1845,
+          "output": 301,
+          "reasoning": 254
+        }
+      }
+    },
+    {
+      "id": "owner-check-removed",
+      "label": "risky",
+      "what": "owner check taken out of a rule",
+      "source": "authored",
+      "provable": true,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "proven",
+        "foundBy": "probe",
+        "before": "blocked",
+        "action": "read",
+        "role": "bob",
+        "table": "notes",
+        "query": "select * from public.\"notes\";",
+        "reason": null,
+        "agentCalls": 0,
+        "ms": 3911,
+        "usage": {
+          "attacker": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          },
+          "judge": {
+            "calls": 1,
+            "input": 966,
+            "output": 192,
+            "reasoning": 139
+          }
+        }
+      },
+      "warningMs": 12582,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2504,
+          "output": 356,
+          "reasoning": 108
+        },
+        "write": {
+          "calls": 1,
+          "input": 1974,
+          "output": 2376,
+          "reasoning": 1975
+        },
+        "review": {
+          "calls": 1,
+          "input": 1899,
+          "output": 242,
+          "reasoning": 195
+        }
+      }
+    },
+    {
+      "id": "hard-f-related-table",
+      "label": "risky",
+      "what": "private data copied to a table any signed-in user can read",
+      "source": "authored",
+      "provable": true,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "proven",
+        "foundBy": "attacker",
+        "before": "blocked",
+        "action": "read",
+        "role": "bob",
+        "table": "notes",
+        "query": "select * from public.note_versions",
+        "reason": null,
+        "agentCalls": 5,
+        "ms": 20028,
+        "usage": {
+          "attacker": {
+            "calls": 5,
+            "input": 5861,
+            "output": 1652,
+            "reasoning": 1344
+          },
+          "judge": {
+            "calls": 1,
+            "input": 986,
+            "output": 264,
+            "reasoning": 204
+          }
+        }
+      },
+      "warningMs": 9353,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2864,
+          "output": 464,
+          "reasoning": 212
+        },
+        "write": {
+          "calls": 1,
+          "input": 2291,
+          "output": 1505,
+          "reasoning": 1092
+        },
+        "review": {
+          "calls": 1,
+          "input": 2483,
+          "output": 201,
+          "reasoning": 154
+        }
+      }
+    },
+    {
+      "id": "hard-g-definer-function",
+      "label": "risky",
+      "what": "security definer function with no caller check",
+      "source": "authored",
+      "provable": true,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "proven",
+        "foundBy": "attacker",
+        "before": "blocked",
+        "action": "read",
+        "role": "anon",
+        "table": "notes",
+        "query": "select * from public.notes_for_user('64870b88-2ff4-49ad-ae4f-e566d269bdbf')",
+        "reason": null,
+        "agentCalls": 2,
+        "ms": 8264,
+        "usage": {
+          "attacker": {
+            "calls": 2,
+            "input": 2192,
+            "output": 390,
+            "reasoning": 252
+          },
+          "judge": {
+            "calls": 1,
+            "input": 1026,
+            "output": 222,
+            "reasoning": 145
+          }
+        }
+      },
+      "warningMs": 11980,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2542,
+          "output": 457,
+          "reasoning": 209
+        },
+        "write": {
+          "calls": 1,
+          "input": 2005,
+          "output": 2061,
+          "reasoning": 1664
+        },
+        "review": {
+          "calls": 1,
+          "input": 1944,
+          "output": 423,
+          "reasoning": 376
+        }
+      }
+    },
+    {
+      "id": "hard-h-insert-wrong-column",
+      "label": "risky",
+      "what": "insert rule checks the wrong column",
+      "source": "authored",
+      "provable": true,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "proven",
+        "foundBy": "attacker",
+        "before": "blocked",
+        "action": "insert",
+        "role": "bob",
+        "table": "notes",
+        "query": "insert into public.notes (id, owner_id, title, body) values ('eee828bf-ba16-48b4-b23a-5ebaaf2a88b1', '5e2372e2-6d9c-4ae5-952a-10168d985260', 'pwn', 'pwn')",
+        "reason": null,
+        "agentCalls": 4,
+        "ms": 17397,
+        "usage": {
+          "attacker": {
+            "calls": 4,
+            "input": 4502,
+            "output": 1871,
+            "reasoning": 1573
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 14092,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2584,
+          "output": 613,
+          "reasoning": 331
+        },
+        "write": {
+          "calls": 1,
+          "input": 2026,
+          "output": 2505,
+          "reasoning": 2107
+        },
+        "review": {
+          "calls": 1,
+          "input": 1932,
+          "output": 388,
+          "reasoning": 341
+        }
+      }
+    },
+    {
+      "id": "hard-i-view",
+      "label": "risky",
+      "what": "view that skips row level security",
+      "source": "authored",
+      "provable": true,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "proven",
+        "foundBy": "attacker",
+        "before": "blocked",
+        "action": "read",
+        "role": "anon",
+        "table": "notes",
+        "query": "select * from public.notes_feed",
+        "reason": null,
+        "agentCalls": 2,
+        "ms": 8917,
+        "usage": {
+          "attacker": {
+            "calls": 2,
+            "input": 2209,
+            "output": 360,
+            "reasoning": 223
+          },
+          "judge": {
+            "calls": 1,
+            "input": 1033,
+            "output": 218,
+            "reasoning": 150
+          }
+        }
+      },
+      "warningMs": 11656,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2534,
+          "output": 543,
+          "reasoning": 330
+        },
+        "write": {
+          "calls": 1,
+          "input": 1983,
+          "output": 1995,
+          "reasoning": 1583
+        },
+        "review": {
+          "calls": 1,
+          "input": 1951,
+          "output": 185,
+          "reasoning": 138
+        }
+      }
+    },
+    {
+      "id": "safe-invoices-owner-rules",
+      "label": "safe",
+      "what": "new table with owner-only rules",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 11,
+        "ms": 69450,
+        "usage": {
+          "attacker": {
+            "calls": 11,
+            "input": 14447,
+            "output": 12511,
+            "reasoning": 11598
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 21421,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2598,
+          "output": 453,
+          "reasoning": 211
+        },
+        "write": {
+          "calls": 1,
+          "input": 2596,
+          "output": 4204,
+          "reasoning": 3815
+        },
+        "review": {
+          "calls": 1,
+          "input": 2186,
+          "output": 611,
+          "reasoning": 571
+        }
+      }
+    },
+    {
+      "id": "safe-public-blog",
+      "label": "safe",
+      "what": "genuinely public table",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": "probe",
+        "before": "not-run",
+        "action": "read",
+        "role": "anon",
+        "table": "posts",
+        "query": "select * from public.\"posts\";",
+        "reason": "the data looks meant for everyone: Table holds blog posts (title, body, published_at) and its SELECT rule 'posts are public' with using=true explicitly makes all rows readable by anyone.",
+        "agentCalls": 11,
+        "ms": 81854,
+        "usage": {
+          "attacker": {
+            "calls": 11,
+            "input": 15091,
+            "output": 14886,
+            "reasoning": 14045
+          },
+          "judge": {
+            "calls": 1,
+            "input": 899,
+            "output": 255,
+            "reasoning": 198
+          }
+        }
+      },
+      "warningMs": 53470,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2680,
+          "output": 684,
+          "reasoning": 523
+        },
+        "write": {
+          "calls": 2,
+          "input": 5258,
+          "output": 10761,
+          "reasoning": 10027
+        },
+        "review": {
+          "calls": 1,
+          "input": 2283,
+          "output": 763,
+          "reasoning": 728
+        }
+      }
+    },
+    {
+      "id": "safe-invoker-view",
+      "label": "safe",
+      "what": "view with security_invoker on",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 12,
+        "ms": 73123,
+        "usage": {
+          "attacker": {
+            "calls": 12,
+            "input": 16243,
+            "output": 13547,
+            "reasoning": 12654
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 52771,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2498,
+          "output": 744,
+          "reasoning": 599
+        },
+        "write": {
+          "calls": 2,
+          "input": 4960,
+          "output": 9382,
+          "reasoning": 8676
+        },
+        "review": {
+          "calls": 2,
+          "input": 3978,
+          "output": 2325,
+          "reasoning": 2210
+        }
+      }
+    },
+    {
+      "id": "safe-checked-function",
+      "label": "safe",
+      "what": "security definer function that checks the caller",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 11,
+        "ms": 70938,
+        "usage": {
+          "attacker": {
+            "calls": 11,
+            "input": 14356,
+            "output": 14072,
+            "reasoning": 13176
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 62806,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2507,
+          "output": 744,
+          "reasoning": 540
+        },
+        "write": {
+          "calls": 2,
+          "input": 5046,
+          "output": 12974,
+          "reasoning": 12322
+        },
+        "review": {
+          "calls": 2,
+          "input": 3947,
+          "output": 1474,
+          "reasoning": 1361
+        }
+      }
+    },
+    {
+      "id": "safe-versions-owner",
+      "label": "safe",
+      "what": "version history with an owner rule",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 10,
+        "ms": 64946,
+        "usage": {
+          "attacker": {
+            "calls": 10,
+            "input": 13471,
+            "output": 11306,
+            "reasoning": 10365
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 23239,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2702,
+          "output": 748,
+          "reasoning": 479
+        },
+        "write": {
+          "calls": 1,
+          "input": 2724,
+          "output": 4047,
+          "reasoning": 3632
+        },
+        "review": {
+          "calls": 1,
+          "input": 2404,
+          "output": 1005,
+          "reasoning": 970
+        }
+      }
+    },
+    {
+      "id": "safe-published-view",
+      "label": "safe",
+      "what": "view of rows marked public only",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 10,
+        "ms": 68709,
+        "usage": {
+          "attacker": {
+            "calls": 10,
+            "input": 12533,
+            "output": 11741,
+            "reasoning": 10997
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 21491,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2544,
+          "output": 884,
+          "reasoning": 688
+        },
+        "write": {
+          "calls": 1,
+          "input": 2469,
+          "output": 3810,
+          "reasoning": 3418
+        },
+        "review": {
+          "calls": 1,
+          "input": 2003,
+          "output": 666,
+          "reasoning": 626
+        }
+      }
+    },
+    {
+      "id": "safe-insert-right-column",
+      "label": "safe",
+      "what": "insert rule that checks the owner",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 11,
+        "ms": 72276,
+        "usage": {
+          "attacker": {
+            "calls": 11,
+            "input": 14176,
+            "output": 12602,
+            "reasoning": 11773
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 45176,
+      "usage": {
+        "pick": {
+          "calls": 2,
+          "input": 5070,
+          "output": 1098,
+          "reasoning": 805
+        },
+        "write": {
+          "calls": 2,
+          "input": 5022,
+          "output": 10055,
+          "reasoning": 9288
+        },
+        "review": {
+          "calls": 1,
+          "input": 1979,
+          "output": 1308,
+          "reasoning": 1268
+        }
+      }
+    },
+    {
+      "id": "risky-04-service-role-in-client",
+      "label": "risky",
+      "what": "service role in browser code",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "secrets",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 27089,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2653,
+          "output": 398,
+          "reasoning": 180
+        },
+        "write": {
+          "calls": 2,
+          "input": 4237,
+          "output": 5754,
+          "reasoning": 4938
+        },
+        "review": {
+          "calls": 1,
+          "input": 2211,
+          "output": 266,
+          "reasoning": 219
+        }
+      }
+    },
+    {
+      "id": "risky-05-public-env-secret",
+      "label": "risky",
+      "what": "secret in a NEXT_PUBLIC_ setting",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "secrets",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 15960,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2486,
+          "output": 349,
+          "reasoning": 200
+        },
+        "write": {
+          "calls": 1,
+          "input": 1905,
+          "output": 2631,
+          "reasoning": 2272
+        },
+        "review": {
+          "calls": 1,
+          "input": 1846,
+          "output": 285,
+          "reasoning": 238
+        }
+      }
+    },
+    {
+      "id": "risky-06-admin-route-no-role",
+      "label": "risky",
+      "what": "admin route without a role check",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "auth",
+      "severity": "medium",
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 13885,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2585,
+          "output": 416,
+          "reasoning": 226
+        },
+        "write": {
+          "calls": 1,
+          "input": 2025,
+          "output": 2464,
+          "reasoning": 2088
+        },
+        "review": {
+          "calls": 1,
+          "input": 2034,
+          "output": 286,
+          "reasoning": 239
+        }
+      }
+    },
+    {
+      "id": "risky-07-delete-without-owner",
+      "label": "risky",
+      "what": "missing owner filter on a delete",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "ownership",
+      "severity": "medium",
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 12756,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2542,
+          "output": 626,
+          "reasoning": 485
+        },
+        "write": {
+          "calls": 1,
+          "input": 1951,
+          "output": 2179,
+          "reasoning": 1781
+        },
+        "review": {
+          "calls": 1,
+          "input": 1966,
+          "output": 362,
+          "reasoning": 315
+        }
+      }
+    },
+    {
+      "id": "risky-08-stripe-webhook-unverified",
+      "label": "risky",
+      "what": "unsigned webhook",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "payments",
+      "severity": "medium",
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 13289,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2679,
+          "output": 661,
+          "reasoning": 424
+        },
+        "write": {
+          "calls": 1,
+          "input": 2088,
+          "output": 2421,
+          "reasoning": 2056
+        },
+        "review": {
+          "calls": 1,
+          "input": 2103,
+          "output": 223,
+          "reasoning": 176
+        }
+      }
+    },
+    {
+      "id": "risky-09-bucket-public",
+      "label": "risky",
+      "what": "public storage bucket",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 9395,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2475,
+          "output": 356,
+          "reasoning": 243
+        },
+        "write": {
+          "calls": 1,
+          "input": 1897,
+          "output": 1806,
+          "reasoning": 1502
+        },
+        "review": {
+          "calls": 1,
+          "input": 1775,
+          "output": 195,
+          "reasoning": 148
+        }
+      }
+    },
+    {
+      "id": "risky-10-secret-in-browser-code",
+      "label": "risky",
+      "what": "secret typed into browser code",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "secrets",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 27480,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2595,
+          "output": 372,
+          "reasoning": 188
+        },
+        "write": {
+          "calls": 2,
+          "input": 4105,
+          "output": 6655,
+          "reasoning": 5863
+        },
+        "review": {
+          "calls": 1,
+          "input": 2096,
+          "output": 318,
+          "reasoning": 271
+        }
+      }
+    },
+    {
+      "id": "safe-01-owner-policy",
+      "label": "safe",
+      "what": "owner policy added",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 12499,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2464,
+          "output": 322,
+          "reasoning": 177
+        },
+        "write": {
+          "calls": 1,
+          "input": 2437,
+          "output": 2336,
+          "reasoning": 1922
+        },
+        "review": {
+          "calls": 1,
+          "input": 1961,
+          "output": 317,
+          "reasoning": 277
+        }
+      }
+    },
+    {
+      "id": "safe-02-server-only-key",
+      "label": "safe",
+      "what": "service key on the server only",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 21614,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2469,
+          "output": 459,
+          "reasoning": 320
+        },
+        "write": {
+          "calls": 1,
+          "input": 2435,
+          "output": 3529,
+          "reasoning": 3124
+        },
+        "review": {
+          "calls": 1,
+          "input": 1961,
+          "output": 1260,
+          "reasoning": 1220
+        }
+      }
+    },
+    {
+      "id": "safe-03-webhook-verified",
+      "label": "safe",
+      "what": "verified webhook",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 58678,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2605,
+          "output": 523,
+          "reasoning": 408
+        },
+        "write": {
+          "calls": 2,
+          "input": 5176,
+          "output": 10717,
+          "reasoning": 9976
+        },
+        "review": {
+          "calls": 2,
+          "input": 4407,
+          "output": 1978,
+          "reasoning": 1861
+        }
+      }
+    },
+    {
+      "id": "safe-04-ui-change",
+      "label": "safe",
+      "what": "ordinary UI change",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "nothing-to-teach",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": null,
+      "gated": false,
+      "proof": null,
+      "warningMs": 1780,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2495,
+          "output": 304,
+          "reasoning": 249
+        },
+        "write": null,
+        "review": null
+      }
+    },
+    {
+      "id": "safe-05-delete-with-owner",
+      "label": "safe",
+      "what": "delete with an owner filter",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 81809,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2560,
+          "output": 618,
+          "reasoning": 365
+        },
+        "write": {
+          "calls": 2,
+          "input": 5191,
+          "output": 16366,
+          "reasoning": 15515
+        },
+        "review": {
+          "calls": 2,
+          "input": 4309,
+          "output": 1857,
+          "reasoning": 1753
+        }
+      }
+    },
+    {
+      "id": "safe-06-admin-route-with-role",
+      "label": "safe",
+      "what": "admin route with a role check",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 21838,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2656,
+          "output": 588,
+          "reasoning": 381
+        },
+        "write": {
+          "calls": 1,
+          "input": 2681,
+          "output": 3346,
+          "reasoning": 2995
+        },
+        "review": {
+          "calls": 1,
+          "input": 2284,
+          "output": 391,
+          "reasoning": 351
+        }
+      }
+    },
+    {
+      "id": "safe-07-policy-recreated",
+      "label": "safe",
+      "what": "rule re-created unchanged",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "nothing-to-teach",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": null,
+      "gated": false,
+      "proof": null,
+      "warningMs": 4701,
+      "usage": {
+        "pick": {
+          "calls": 2,
+          "input": 5112,
+          "output": 1107,
+          "reasoning": 983
+        },
+        "write": null,
+        "review": null
+      }
+    },
+    {
+      "id": "safe-08-anon-key-in-client",
+      "label": "safe",
+      "what": "public anon key in the browser",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 27286,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2472,
+          "output": 1216,
+          "reasoning": 1023
+        },
+        "write": {
+          "calls": 1,
+          "input": 2441,
+          "output": 3751,
+          "reasoning": 3343
+        },
+        "review": {
+          "calls": 1,
+          "input": 1969,
+          "output": 1211,
+          "reasoning": 1171
+        }
+      }
+    },
+    {
+      "id": "gen-admin-route-checked",
+      "label": "safe",
+      "what": "server-only key behind a role check",
+      "source": "generated",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 24698,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2802,
+          "output": 1505,
+          "reasoning": 1258
+        },
+        "write": {
+          "calls": 1,
+          "input": 2800,
+          "output": 3538,
+          "reasoning": 3207
+        },
+        "review": {
+          "calls": 1,
+          "input": 2521,
+          "output": 463,
+          "reasoning": 423
+        }
+      }
+    },
+    {
+      "id": "gen-messages-definer",
+      "label": "risky",
+      "what": "security definer function reads other people's messages",
+      "source": "generated",
+      "provable": true,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "proven",
+        "foundBy": "attacker",
+        "before": "no-table",
+        "action": "read",
+        "role": "anon",
+        "table": "messages",
+        "query": "select * from public.get_messages_for_user('effd0b49-7bfd-41d1-82da-e766ff8fd9f3')",
+        "reason": null,
+        "agentCalls": 3,
+        "ms": 11971,
+        "usage": {
+          "attacker": {
+            "calls": 3,
+            "input": 3408,
+            "output": 641,
+            "reasoning": 458
+          },
+          "judge": {
+            "calls": 1,
+            "input": 964,
+            "output": 232,
+            "reasoning": 167
+          }
+        }
+      },
+      "warningMs": 14536,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2751,
+          "output": 442,
+          "reasoning": 186
+        },
+        "write": {
+          "calls": 1,
+          "input": 2219,
+          "output": 2580,
+          "reasoning": 2163
+        },
+        "review": {
+          "calls": 1,
+          "input": 2344,
+          "output": 267,
+          "reasoning": 220
+        }
+      }
+    },
+    {
+      "id": "gen-orders-any-user",
+      "label": "risky",
+      "what": "read rule lets any signed-in user see every order",
+      "source": "generated",
+      "provable": true,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "proven",
+        "foundBy": "probe",
+        "before": "no-table",
+        "action": "read",
+        "role": "bob",
+        "table": "orders",
+        "query": "select * from public.\"orders\";",
+        "reason": null,
+        "agentCalls": 0,
+        "ms": 4273,
+        "usage": {
+          "attacker": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          },
+          "judge": {
+            "calls": 1,
+            "input": 913,
+            "output": 165,
+            "reasoning": 113
+          }
+        }
+      },
+      "warningMs": 11184,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2721,
+          "output": 562,
+          "reasoning": 317
+        },
+        "write": {
+          "calls": 1,
+          "input": 2186,
+          "output": 2203,
+          "reasoning": 1869
+        },
+        "review": {
+          "calls": 1,
+          "input": 2239,
+          "output": 255,
+          "reasoning": 208
+        }
+      }
+    },
+    {
+      "id": "gen-profile-update-route",
+      "label": "risky",
+      "what": "update with no owner check",
+      "source": "generated",
+      "provable": false,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "ownership",
+      "severity": "medium",
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 12469,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2678,
+          "output": 739,
+          "reasoning": 508
+        },
+        "write": {
+          "calls": 1,
+          "input": 2143,
+          "output": 1905,
+          "reasoning": 1480
+        },
+        "review": {
+          "calls": 1,
+          "input": 2256,
+          "output": 238,
+          "reasoning": 191
+        }
+      }
+    },
+    {
+      "id": "gen-public-catalog",
+      "label": "safe",
+      "what": "genuinely public table",
+      "source": "generated",
+      "provable": false,
+      "error": null,
+      "outcome": "nothing-to-teach",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": null,
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 12,
+        "ms": 68704,
+        "usage": {
+          "attacker": {
+            "calls": 12,
+            "input": 15198,
+            "output": 11436,
+            "reasoning": 10649
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 6993,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2581,
+          "output": 1224,
+          "reasoning": 1149
+        },
+        "write": null,
+        "review": null
+      }
+    },
+    {
+      "id": "gen-stripe-key-in-browser",
+      "label": "risky",
+      "what": "secret key in browser code",
+      "source": "generated",
+      "provable": false,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "secrets",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 18359,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2720,
+          "output": 253,
+          "reasoning": 121
+        },
+        "write": {
+          "calls": 1,
+          "input": 2153,
+          "output": 2963,
+          "reasoning": 2570
+        },
+        "review": {
+          "calls": 1,
+          "input": 2290,
+          "output": 281,
+          "reasoning": 234
+        }
+      }
+    },
+    {
+      "id": "gen-tasks-owner-rules",
+      "label": "safe",
+      "what": "new table with owner-only rules",
+      "source": "generated",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 11,
+        "ms": 58597,
+        "usage": {
+          "attacker": {
+            "calls": 12,
+            "input": 16638,
+            "output": 9429,
+            "reasoning": 8755
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 21619,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2683,
+          "output": 371,
+          "reasoning": 122
+        },
+        "write": {
+          "calls": 1,
+          "input": 2688,
+          "output": 3824,
+          "reasoning": 3474
+        },
+        "review": {
+          "calls": 1,
+          "input": 2319,
+          "output": 677,
+          "reasoning": 637
+        }
+      }
+    },
+    {
+      "id": "gen-webhook-verified",
+      "label": "safe",
+      "what": "verified webhook",
+      "source": "generated",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": null,
+      "warningMs": 23185,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2822,
+          "output": 1265,
+          "reasoning": 1044
+        },
+        "write": {
+          "calls": 1,
+          "input": 2772,
+          "output": 3194,
+          "reasoning": 2780
+        },
+        "review": {
+          "calls": 1,
+          "input": 2543,
+          "output": 540,
+          "reasoning": 500
+        }
+      }
+    },
+    {
+      "id": "held-metadata-admin",
+      "label": "risky",
+      "what": "read rule trusts a role people can set on themselves",
+      "source": "held-out",
+      "provable": false,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 12,
+        "ms": 66206,
+        "usage": {
+          "attacker": {
+            "calls": 12,
+            "input": 15416,
+            "output": 10570,
+            "reasoning": 9744
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 15774,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2479,
+          "output": 912,
+          "reasoning": 694
+        },
+        "write": {
+          "calls": 1,
+          "input": 1979,
+          "output": 2669,
+          "reasoning": 2298
+        },
+        "review": {
+          "calls": 1,
+          "input": 1884,
+          "output": 394,
+          "reasoning": 347
+        }
+      }
+    },
+    {
+      "id": "held-note-wipe-function",
+      "label": "risky",
+      "what": "function deletes another person's notes",
+      "source": "held-out",
+      "provable": true,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "proven",
+        "foundBy": "attacker",
+        "before": "blocked",
+        "action": "delete",
+        "role": "bob",
+        "table": "notes",
+        "query": "select public.clear_user_notes('a7e4867a-1bde-4c26-8cfb-0040d6882ee3')",
+        "reason": null,
+        "agentCalls": 2,
+        "ms": 8707,
+        "usage": {
+          "attacker": {
+            "calls": 3,
+            "input": 3335,
+            "output": 778,
+            "reasoning": 564
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 14355,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2582,
+          "output": 493,
+          "reasoning": 244
+        },
+        "write": {
+          "calls": 1,
+          "input": 2043,
+          "output": 2282,
+          "reasoning": 1887
+        },
+        "review": {
+          "calls": 1,
+          "input": 2004,
+          "output": 331,
+          "reasoning": 284
+        }
+      }
+    },
+    {
+      "id": "held-notes-count-function",
+      "label": "safe",
+      "what": "function returns only a total",
+      "source": "held-out",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 9,
+        "ms": 57511,
+        "usage": {
+          "attacker": {
+            "calls": 10,
+            "input": 12477,
+            "output": 9900,
+            "reasoning": 9208
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 21404,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2565,
+          "output": 1094,
+          "reasoning": 904
+        },
+        "write": {
+          "calls": 1,
+          "input": 2530,
+          "output": 3158,
+          "reasoning": 2774
+        },
+        "review": {
+          "calls": 1,
+          "input": 2027,
+          "output": 461,
+          "reasoning": 421
+        }
+      }
+    },
+    {
+      "id": "held-team-join",
+      "label": "risky",
+      "what": "anyone can join any team, then read its documents",
+      "source": "held-out",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 11,
+        "ms": 85141,
+        "usage": {
+          "attacker": {
+            "calls": 12,
+            "input": 14709,
+            "output": 13936,
+            "reasoning": 12942
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 21271,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2901,
+          "output": 918,
+          "reasoning": 675
+        },
+        "write": {
+          "calls": 1,
+          "input": 2900,
+          "output": 3535,
+          "reasoning": 3194
+        },
+        "review": {
+          "calls": 1,
+          "input": 2718,
+          "output": 466,
+          "reasoning": 426
+        }
+      }
+    },
+    {
+      "id": "held-team-owner-invites",
+      "label": "safe",
+      "what": "only a team's owner can add members",
+      "source": "held-out",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 11,
+        "ms": 79444,
+        "usage": {
+          "attacker": {
+            "calls": 12,
+            "input": 14573,
+            "output": 13603,
+            "reasoning": 12700
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 28282,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2815,
+          "output": 717,
+          "reasoning": 397
+        },
+        "write": {
+          "calls": 1,
+          "input": 2834,
+          "output": 4166,
+          "reasoning": 3739
+        },
+        "review": {
+          "calls": 1,
+          "input": 2547,
+          "output": 530,
+          "reasoning": 490
+        }
+      }
+    },
+    {
+      "id": "held-ticket-reassign",
+      "label": "safe",
+      "what": "update rule with no with check, which reuses the owner check",
+      "source": "held-out",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": null,
+        "before": "not-run",
+        "action": null,
+        "role": null,
+        "table": null,
+        "query": null,
+        "reason": "no query reached Alice's rows",
+        "agentCalls": 8,
+        "ms": 65231,
+        "usage": {
+          "attacker": {
+            "calls": 8,
+            "input": 10115,
+            "output": 11794,
+            "reasoning": 11170
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 15151,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2659,
+          "output": 395,
+          "reasoning": 209
+        },
+        "write": {
+          "calls": 1,
+          "input": 2664,
+          "output": 2213,
+          "reasoning": 1867
+        },
+        "review": {
+          "calls": 1,
+          "input": 2264,
+          "output": 532,
+          "reasoning": 492
+        }
+      }
+    }
+  ]
+}
