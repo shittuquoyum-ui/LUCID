@@ -1,44 +1,44 @@
 {
   "summary": {
-    "commits": 43,
+    "commits": 46,
     "errors": [],
     "risky": {
-      "total": 21,
-      "caught": 20,
+      "total": 22,
+      "caught": 21,
       "missed": [
         "held-team-join"
       ]
     },
     "safe": {
-      "total": 22,
+      "total": 24,
       "warned": 0,
       "falseWarnings": []
     },
     "proofs": {
-      "provable": 10,
-      "inProduct": 10,
-      "proverAlone": 10,
-      "byProbe": 4,
+      "provable": 11,
+      "inProduct": 11,
+      "proverAlone": 11,
+      "byProbe": 5,
       "byAttacker": 6,
       "errors": [],
       "falseProofsInProduct": [],
       "falseProofsProverAlone": []
     },
     "time": {
-      "warningMedianMs": 15960,
-      "warningP90Ms": 52771,
-      "totalMedianMs": 21491,
-      "totalP90Ms": 53470,
-      "proofMedianMs": 58597,
-      "proofP90Ms": 79444
+      "warningMedianMs": 15644,
+      "warningP90Ms": 44438,
+      "totalMedianMs": 19708,
+      "totalP90Ms": 51932,
+      "proofMedianMs": 57816,
+      "proofP90Ms": 76946
     },
     "tokens": {
-      "total": 956021,
-      "perCommit": 22233
+      "total": 1057110,
+      "perCommit": 22981
     },
     "cost": {
-      "total": 2.42020318376,
-      "perCommit": 0.05628379497116279
+      "total": 2.6462795052400003,
+      "perCommit": 0.057527815331304355
     }
   },
   "rows": [
@@ -64,8 +64,9 @@
         "table": "notes",
         "query": "select * from public.\"notes\";",
         "reason": null,
+        "publicRead": false,
         "agentCalls": 0,
-        "ms": 3527,
+        "ms": 2579,
         "usage": {
           "attacker": {
             "calls": 0,
@@ -74,32 +75,32 @@
             "reasoning": 0
           },
           "judge": {
-            "calls": 1,
-            "input": 962,
-            "output": 169,
-            "reasoning": 116
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
           }
         }
       },
-      "warningMs": 14564,
+      "warningMs": 10780,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2475,
-          "output": 253,
-          "reasoning": 111
+          "input": 2522,
+          "output": 220,
+          "reasoning": 70
         },
         "write": {
           "calls": 1,
-          "input": 1889,
-          "output": 2205,
-          "reasoning": 1814
+          "input": 1897,
+          "output": 1851,
+          "reasoning": 1478
         },
         "review": {
           "calls": 1,
-          "input": 1842,
-          "output": 230,
-          "reasoning": 183
+          "input": 1863,
+          "output": 204,
+          "reasoning": 157
         }
       }
     },
@@ -125,8 +126,9 @@
         "table": "notes",
         "query": "select * from public.\"notes\";",
         "reason": null,
+        "publicRead": false,
         "agentCalls": 0,
-        "ms": 4043,
+        "ms": 2745,
         "usage": {
           "attacker": {
             "calls": 0,
@@ -135,32 +137,32 @@
             "reasoning": 0
           },
           "judge": {
-            "calls": 1,
-            "input": 958,
-            "output": 271,
-            "reasoning": 215
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
           }
         }
       },
-      "warningMs": 10968,
+      "warningMs": 11646,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2538,
-          "output": 452,
-          "reasoning": 259
+          "input": 2585,
+          "output": 265,
+          "reasoning": 124
         },
         "write": {
           "calls": 1,
           "input": 1928,
-          "output": 1630,
-          "reasoning": 1260
+          "output": 2120,
+          "reasoning": 1729
         },
         "review": {
           "calls": 1,
-          "input": 1845,
-          "output": 301,
-          "reasoning": 254
+          "input": 1902,
+          "output": 216,
+          "reasoning": 169
         }
       }
     },
@@ -186,8 +188,9 @@
         "table": "notes",
         "query": "select * from public.\"notes\";",
         "reason": null,
+        "publicRead": false,
         "agentCalls": 0,
-        "ms": 3911,
+        "ms": 2836,
         "usage": {
           "attacker": {
             "calls": 0,
@@ -196,32 +199,32 @@
             "reasoning": 0
           },
           "judge": {
-            "calls": 1,
-            "input": 966,
-            "output": 192,
-            "reasoning": 139
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
           }
         }
       },
-      "warningMs": 12582,
+      "warningMs": 11021,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2504,
-          "output": 356,
-          "reasoning": 108
+          "input": 2551,
+          "output": 353,
+          "reasoning": 98
         },
         "write": {
           "calls": 1,
-          "input": 1974,
-          "output": 2376,
-          "reasoning": 1975
+          "input": 1982,
+          "output": 1741,
+          "reasoning": 1365
         },
         "review": {
           "calls": 1,
-          "input": 1899,
-          "output": 242,
-          "reasoning": 195
+          "input": 1910,
+          "output": 290,
+          "reasoning": 243
         }
       }
     },
@@ -247,42 +250,43 @@
         "table": "notes",
         "query": "select * from public.note_versions",
         "reason": null,
-        "agentCalls": 5,
-        "ms": 20028,
+        "publicRead": false,
+        "agentCalls": 6,
+        "ms": 17525,
         "usage": {
           "attacker": {
-            "calls": 5,
-            "input": 5861,
-            "output": 1652,
-            "reasoning": 1344
+            "calls": 6,
+            "input": 7270,
+            "output": 1752,
+            "reasoning": 1374
           },
           "judge": {
-            "calls": 1,
-            "input": 986,
-            "output": 264,
-            "reasoning": 204
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
           }
         }
       },
-      "warningMs": 9353,
+      "warningMs": 12168,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2864,
-          "output": 464,
-          "reasoning": 212
+          "input": 2911,
+          "output": 703,
+          "reasoning": 438
         },
         "write": {
           "calls": 1,
-          "input": 2291,
-          "output": 1505,
-          "reasoning": 1092
+          "input": 2324,
+          "output": 1909,
+          "reasoning": 1462
         },
         "review": {
           "calls": 1,
-          "input": 2483,
-          "output": 201,
-          "reasoning": 154
+          "input": 2554,
+          "output": 214,
+          "reasoning": 167
         }
       }
     },
@@ -306,44 +310,45 @@
         "action": "read",
         "role": "anon",
         "table": "notes",
-        "query": "select * from public.notes_for_user('64870b88-2ff4-49ad-ae4f-e566d269bdbf')",
+        "query": "select * from public.notes_for_user('f1f44721-f309-4a19-883b-658cbcc7e238')",
         "reason": null,
-        "agentCalls": 2,
-        "ms": 8264,
+        "publicRead": false,
+        "agentCalls": 3,
+        "ms": 8096,
         "usage": {
           "attacker": {
-            "calls": 2,
-            "input": 2192,
-            "output": 390,
-            "reasoning": 252
+            "calls": 3,
+            "input": 3363,
+            "output": 695,
+            "reasoning": 494
           },
           "judge": {
-            "calls": 1,
-            "input": 1026,
-            "output": 222,
-            "reasoning": 145
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
           }
         }
       },
-      "warningMs": 11980,
+      "warningMs": 11612,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2542,
-          "output": 457,
-          "reasoning": 209
+          "input": 2589,
+          "output": 433,
+          "reasoning": 184
         },
         "write": {
           "calls": 1,
-          "input": 2005,
-          "output": 2061,
-          "reasoning": 1664
+          "input": 2006,
+          "output": 1831,
+          "reasoning": 1390
         },
         "review": {
           "calls": 1,
-          "input": 1944,
-          "output": 423,
-          "reasoning": 376
+          "input": 2023,
+          "output": 270,
+          "reasoning": 223
         }
       }
     },
@@ -367,16 +372,17 @@
         "action": "insert",
         "role": "bob",
         "table": "notes",
-        "query": "insert into public.notes (id, owner_id, title, body) values ('eee828bf-ba16-48b4-b23a-5ebaaf2a88b1', '5e2372e2-6d9c-4ae5-952a-10168d985260', 'pwn', 'pwn')",
+        "query": "insert into public.notes (id, owner_id, title) values ('8b2325ed-3339-47f3-8a47-19ac5079e9b7', '5deadd46-dde7-4351-bc8f-4e33170d50c9', 'pwned')",
         "reason": null,
+        "publicRead": false,
         "agentCalls": 4,
-        "ms": 17397,
+        "ms": 15557,
         "usage": {
           "attacker": {
             "calls": 4,
-            "input": 4502,
-            "output": 1871,
-            "reasoning": 1573
+            "input": 4614,
+            "output": 1790,
+            "reasoning": 1497
           },
           "judge": {
             "calls": 0,
@@ -386,25 +392,25 @@
           }
         }
       },
-      "warningMs": 14092,
+      "warningMs": 14887,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2584,
-          "output": 613,
-          "reasoning": 331
+          "input": 2631,
+          "output": 683,
+          "reasoning": 421
         },
         "write": {
           "calls": 1,
-          "input": 2026,
-          "output": 2505,
-          "reasoning": 2107
+          "input": 2006,
+          "output": 2446,
+          "reasoning": 2057
         },
         "review": {
           "calls": 1,
-          "input": 1932,
-          "output": 388,
-          "reasoning": 341
+          "input": 1962,
+          "output": 387,
+          "reasoning": 340
         }
       }
     },
@@ -430,42 +436,105 @@
         "table": "notes",
         "query": "select * from public.notes_feed",
         "reason": null,
+        "publicRead": false,
         "agentCalls": 2,
-        "ms": 8917,
+        "ms": 7683,
         "usage": {
           "attacker": {
             "calls": 2,
-            "input": 2209,
-            "output": 360,
-            "reasoning": 223
+            "input": 2251,
+            "output": 548,
+            "reasoning": 451
           },
           "judge": {
-            "calls": 1,
-            "input": 1033,
-            "output": 218,
-            "reasoning": 150
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
           }
         }
       },
-      "warningMs": 11656,
+      "warningMs": 14554,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2534,
-          "output": 543,
-          "reasoning": 330
+          "input": 2581,
+          "output": 410,
+          "reasoning": 293
         },
         "write": {
           "calls": 1,
-          "input": 1983,
-          "output": 1995,
-          "reasoning": 1583
+          "input": 1947,
+          "output": 2152,
+          "reasoning": 1814
         },
         "review": {
           "calls": 1,
-          "input": 1951,
-          "output": 185,
-          "reasoning": 138
+          "input": 1934,
+          "output": 294,
+          "reasoning": 247
+        }
+      }
+    },
+    {
+      "id": "profiles-emails-opened",
+      "label": "risky",
+      "what": "table with emails and phones opened, under a \"public\" name",
+      "source": "authored",
+      "provable": true,
+      "error": null,
+      "outcome": "warning",
+      "warned": true,
+      "category": "data-exposure",
+      "severity": "high",
+      "factCheck": "passed",
+      "gated": true,
+      "proof": {
+        "status": "proven",
+        "foundBy": "probe",
+        "before": "blocked",
+        "action": "read",
+        "role": "anon",
+        "table": "profiles",
+        "query": "select * from public.\"profiles\";",
+        "reason": null,
+        "publicRead": false,
+        "agentCalls": 0,
+        "ms": 2550,
+        "usage": {
+          "attacker": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 15644,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2609,
+          "output": 684,
+          "reasoning": 490
+        },
+        "write": {
+          "calls": 1,
+          "input": 1990,
+          "output": 2457,
+          "reasoning": 2067
+        },
+        "review": {
+          "calls": 1,
+          "input": 1930,
+          "output": 295,
+          "reasoning": 248
         }
       }
     },
@@ -491,14 +560,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
-        "agentCalls": 11,
-        "ms": 69450,
+        "publicRead": false,
+        "agentCalls": 12,
+        "ms": 76946,
         "usage": {
           "attacker": {
-            "calls": 11,
-            "input": 14447,
-            "output": 12511,
-            "reasoning": 11598
+            "calls": 12,
+            "input": 16058,
+            "output": 12831,
+            "reasoning": 11983
           },
           "judge": {
             "calls": 0,
@@ -508,25 +578,25 @@
           }
         }
       },
-      "warningMs": 21421,
+      "warningMs": 19592,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2598,
-          "output": 453,
-          "reasoning": 211
+          "input": 2645,
+          "output": 772,
+          "reasoning": 553
         },
         "write": {
           "calls": 1,
-          "input": 2596,
-          "output": 4204,
-          "reasoning": 3815
+          "input": 2703,
+          "output": 3131,
+          "reasoning": 2699
         },
         "review": {
           "calls": 1,
-          "input": 2186,
-          "output": 611,
-          "reasoning": 571
+          "input": 2260,
+          "output": 813,
+          "reasoning": 773
         }
       }
     },
@@ -551,43 +621,44 @@
         "role": "anon",
         "table": "posts",
         "query": "select * from public.\"posts\";",
-        "reason": "the data looks meant for everyone: Table holds blog posts (title, body, published_at) and its SELECT rule 'posts are public' with using=true explicitly makes all rows readable by anyone.",
-        "agentCalls": 11,
-        "ms": 81854,
+        "reason": "the commit looks meant to publish this: the rule \"posts are public\"",
+        "publicRead": true,
+        "agentCalls": 10,
+        "ms": 70986,
         "usage": {
           "attacker": {
-            "calls": 11,
-            "input": 15091,
-            "output": 14886,
-            "reasoning": 14045
+            "calls": 10,
+            "input": 13458,
+            "output": 10255,
+            "reasoning": 9630
           },
           "judge": {
-            "calls": 1,
-            "input": 899,
-            "output": 255,
-            "reasoning": 198
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
           }
         }
       },
-      "warningMs": 53470,
+      "warningMs": 19217,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2680,
-          "output": 684,
-          "reasoning": 523
+          "input": 2727,
+          "output": 636,
+          "reasoning": 348
         },
         "write": {
-          "calls": 2,
-          "input": 5258,
-          "output": 10761,
-          "reasoning": 10027
+          "calls": 1,
+          "input": 2761,
+          "output": 3220,
+          "reasoning": 2775
         },
         "review": {
           "calls": 1,
-          "input": 2283,
-          "output": 763,
-          "reasoning": 728
+          "input": 2380,
+          "output": 586,
+          "reasoning": 546
         }
       }
     },
@@ -613,14 +684,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
-        "agentCalls": 12,
-        "ms": 73123,
+        "publicRead": false,
+        "agentCalls": 11,
+        "ms": 74639,
         "usage": {
           "attacker": {
             "calls": 12,
-            "input": 16243,
-            "output": 13547,
-            "reasoning": 12654
+            "input": 16358,
+            "output": 12461,
+            "reasoning": 11600
           },
           "judge": {
             "calls": 0,
@@ -630,25 +702,25 @@
           }
         }
       },
-      "warningMs": 52771,
+      "warningMs": 15475,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2498,
-          "output": 744,
-          "reasoning": 599
+          "input": 2545,
+          "output": 356,
+          "reasoning": 247
         },
         "write": {
-          "calls": 2,
-          "input": 4960,
-          "output": 9382,
-          "reasoning": 8676
+          "calls": 1,
+          "input": 2510,
+          "output": 2269,
+          "reasoning": 1902
         },
         "review": {
-          "calls": 2,
-          "input": 3978,
-          "output": 2325,
-          "reasoning": 2210
+          "calls": 1,
+          "input": 2037,
+          "output": 999,
+          "reasoning": 959
         }
       }
     },
@@ -674,14 +746,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
-        "agentCalls": 11,
-        "ms": 70938,
+        "publicRead": false,
+        "agentCalls": 10,
+        "ms": 71245,
         "usage": {
           "attacker": {
-            "calls": 11,
-            "input": 14356,
-            "output": 14072,
-            "reasoning": 13176
+            "calls": 10,
+            "input": 12992,
+            "output": 12377,
+            "reasoning": 11683
           },
           "judge": {
             "calls": 0,
@@ -691,25 +764,25 @@
           }
         }
       },
-      "warningMs": 62806,
+      "warningMs": 22572,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2507,
-          "output": 744,
-          "reasoning": 540
+          "input": 2554,
+          "output": 500,
+          "reasoning": 354
         },
         "write": {
-          "calls": 2,
-          "input": 5046,
-          "output": 12974,
-          "reasoning": 12322
+          "calls": 1,
+          "input": 2548,
+          "output": 3941,
+          "reasoning": 3610
         },
         "review": {
-          "calls": 2,
-          "input": 3947,
-          "output": 1474,
-          "reasoning": 1361
+          "calls": 1,
+          "input": 2021,
+          "output": 1039,
+          "reasoning": 1004
         }
       }
     },
@@ -735,14 +808,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
-        "agentCalls": 10,
-        "ms": 64946,
+        "publicRead": false,
+        "agentCalls": 11,
+        "ms": 67880,
         "usage": {
           "attacker": {
-            "calls": 10,
-            "input": 13471,
-            "output": 11306,
-            "reasoning": 10365
+            "calls": 11,
+            "input": 14473,
+            "output": 11728,
+            "reasoning": 10869
           },
           "judge": {
             "calls": 0,
@@ -752,25 +826,25 @@
           }
         }
       },
-      "warningMs": 23239,
+      "warningMs": 22862,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2702,
-          "output": 748,
-          "reasoning": 479
+          "input": 2749,
+          "output": 1032,
+          "reasoning": 793
         },
         "write": {
           "calls": 1,
-          "input": 2724,
-          "output": 4047,
-          "reasoning": 3632
+          "input": 2764,
+          "output": 2590,
+          "reasoning": 2141
         },
         "review": {
           "calls": 1,
-          "input": 2404,
-          "output": 1005,
-          "reasoning": 970
+          "input": 2472,
+          "output": 1208,
+          "reasoning": 1168
         }
       }
     },
@@ -796,14 +870,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
-        "agentCalls": 10,
-        "ms": 68709,
+        "publicRead": false,
+        "agentCalls": 11,
+        "ms": 64656,
         "usage": {
           "attacker": {
-            "calls": 10,
-            "input": 12533,
-            "output": 11741,
-            "reasoning": 10997
+            "calls": 11,
+            "input": 14487,
+            "output": 12037,
+            "reasoning": 11285
           },
           "judge": {
             "calls": 0,
@@ -813,25 +888,25 @@
           }
         }
       },
-      "warningMs": 21491,
+      "warningMs": 23172,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2544,
-          "output": 884,
-          "reasoning": 688
+          "input": 2591,
+          "output": 728,
+          "reasoning": 537
         },
         "write": {
           "calls": 1,
-          "input": 2469,
-          "output": 3810,
-          "reasoning": 3418
+          "input": 2531,
+          "output": 3185,
+          "reasoning": 2834
         },
         "review": {
           "calls": 1,
-          "input": 2003,
-          "output": 666,
-          "reasoning": 626
+          "input": 2013,
+          "output": 1224,
+          "reasoning": 1189
         }
       }
     },
@@ -857,14 +932,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
-        "agentCalls": 11,
-        "ms": 72276,
+        "publicRead": false,
+        "agentCalls": 12,
+        "ms": 57278,
         "usage": {
           "attacker": {
-            "calls": 11,
-            "input": 14176,
-            "output": 12602,
-            "reasoning": 11773
+            "calls": 12,
+            "input": 15493,
+            "output": 10154,
+            "reasoning": 9328
           },
           "judge": {
             "calls": 0,
@@ -874,25 +950,149 @@
           }
         }
       },
-      "warningMs": 45176,
+      "warningMs": 53976,
       "usage": {
         "pick": {
-          "calls": 2,
-          "input": 5070,
-          "output": 1098,
-          "reasoning": 805
+          "calls": 1,
+          "input": 2566,
+          "output": 809,
+          "reasoning": 652
         },
         "write": {
           "calls": 2,
-          "input": 5022,
-          "output": 10055,
-          "reasoning": 9288
+          "input": 5151,
+          "output": 9711,
+          "reasoning": 8977
+        },
+        "review": {
+          "calls": 2,
+          "input": 4017,
+          "output": 2800,
+          "reasoning": 2680
+        }
+      }
+    },
+    {
+      "id": "safe-leaderboard-opened",
+      "label": "safe",
+      "what": "leaderboard opened on purpose",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": "probe",
+        "before": "not-run",
+        "action": "read",
+        "role": "anon",
+        "table": "leaderboard",
+        "query": "select * from public.\"leaderboard\";",
+        "reason": "the commit looks meant to publish this: only public-looking columns (display_name, score)",
+        "publicRead": true,
+        "agentCalls": 11,
+        "ms": 65518,
+        "usage": {
+          "attacker": {
+            "calls": 11,
+            "input": 14985,
+            "output": 12022,
+            "reasoning": 11227
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 21930,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2610,
+          "output": 1277,
+          "reasoning": 1071
+        },
+        "write": {
+          "calls": 1,
+          "input": 2523,
+          "output": 2924,
+          "reasoning": 2628
         },
         "review": {
           "calls": 1,
-          "input": 1979,
-          "output": 1308,
-          "reasoning": 1268
+          "input": 1927,
+          "output": 800,
+          "reasoning": 765
+        }
+      }
+    },
+    {
+      "id": "safe-public-profiles-opened",
+      "label": "safe",
+      "what": "public_profiles opened: display name and avatar only",
+      "source": "authored",
+      "provable": false,
+      "error": null,
+      "outcome": "lesson",
+      "warned": false,
+      "category": null,
+      "severity": null,
+      "factCheck": "passed",
+      "gated": false,
+      "proof": {
+        "status": "not-reproduced",
+        "foundBy": "probe",
+        "before": "not-run",
+        "action": "read",
+        "role": "anon",
+        "table": "public_profiles",
+        "query": "select * from public.\"public_profiles\";",
+        "reason": "the commit looks meant to publish this: only public-looking columns (display_name, avatar_url)",
+        "publicRead": true,
+        "agentCalls": 11,
+        "ms": 57816,
+        "usage": {
+          "attacker": {
+            "calls": 12,
+            "input": 16390,
+            "output": 10199,
+            "reasoning": 9412
+          },
+          "judge": {
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
+          }
+        }
+      },
+      "warningMs": 22584,
+      "usage": {
+        "pick": {
+          "calls": 1,
+          "input": 2610,
+          "output": 801,
+          "reasoning": 650
+        },
+        "write": {
+          "calls": 1,
+          "input": 2519,
+          "output": 3381,
+          "reasoning": 2977
+        },
+        "review": {
+          "calls": 1,
+          "input": 2005,
+          "output": 991,
+          "reasoning": 951
         }
       }
     },
@@ -910,25 +1110,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 27089,
+      "warningMs": 22147,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2653,
-          "output": 398,
-          "reasoning": 180
+          "input": 2700,
+          "output": 257,
+          "reasoning": 106
         },
         "write": {
           "calls": 2,
-          "input": 4237,
-          "output": 5754,
-          "reasoning": 4938
+          "input": 4245,
+          "output": 5026,
+          "reasoning": 4180
         },
         "review": {
           "calls": 1,
-          "input": 2211,
-          "output": 266,
-          "reasoning": 219
+          "input": 2242,
+          "output": 312,
+          "reasoning": 265
         }
       }
     },
@@ -946,25 +1146,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 15960,
+      "warningMs": 24488,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2486,
-          "output": 349,
-          "reasoning": 200
+          "input": 2533,
+          "output": 335,
+          "reasoning": 188
         },
         "write": {
-          "calls": 1,
-          "input": 1905,
-          "output": 2631,
-          "reasoning": 2272
+          "calls": 2,
+          "input": 3849,
+          "output": 6330,
+          "reasoning": 5662
         },
         "review": {
           "calls": 1,
-          "input": 1846,
-          "output": 285,
-          "reasoning": 238
+          "input": 1872,
+          "output": 271,
+          "reasoning": 224
         }
       }
     },
@@ -982,23 +1182,23 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 13885,
+      "warningMs": 13279,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2585,
-          "output": 416,
-          "reasoning": 226
+          "input": 2632,
+          "output": 503,
+          "reasoning": 366
         },
         "write": {
           "calls": 1,
           "input": 2025,
-          "output": 2464,
-          "reasoning": 2088
+          "output": 2277,
+          "reasoning": 1912
         },
         "review": {
           "calls": 1,
-          "input": 2034,
+          "input": 2063,
           "output": 286,
           "reasoning": 239
         }
@@ -1018,25 +1218,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 12756,
+      "warningMs": 12014,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2542,
-          "output": 626,
-          "reasoning": 485
+          "input": 2589,
+          "output": 491,
+          "reasoning": 344
         },
         "write": {
           "calls": 1,
-          "input": 1951,
-          "output": 2179,
-          "reasoning": 1781
+          "input": 1987,
+          "output": 2186,
+          "reasoning": 1867
         },
         "review": {
           "calls": 1,
-          "input": 1966,
-          "output": 362,
-          "reasoning": 315
+          "input": 1940,
+          "output": 400,
+          "reasoning": 353
         }
       }
     },
@@ -1054,25 +1254,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 13289,
+      "warningMs": 13653,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2679,
-          "output": 661,
-          "reasoning": 424
+          "input": 2726,
+          "output": 646,
+          "reasoning": 435
         },
         "write": {
           "calls": 1,
-          "input": 2088,
-          "output": 2421,
-          "reasoning": 2056
+          "input": 2082,
+          "output": 2428,
+          "reasoning": 1978
         },
         "review": {
           "calls": 1,
-          "input": 2103,
-          "output": 223,
-          "reasoning": 176
+          "input": 2226,
+          "output": 207,
+          "reasoning": 160
         }
       }
     },
@@ -1090,25 +1290,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 9395,
+      "warningMs": 12645,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2475,
-          "output": 356,
-          "reasoning": 243
+          "input": 2522,
+          "output": 400,
+          "reasoning": 283
         },
         "write": {
           "calls": 1,
-          "input": 1897,
-          "output": 1806,
-          "reasoning": 1502
+          "input": 1899,
+          "output": 2089,
+          "reasoning": 1810
         },
         "review": {
           "calls": 1,
-          "input": 1775,
-          "output": 195,
-          "reasoning": 148
+          "input": 1787,
+          "output": 313,
+          "reasoning": 266
         }
       }
     },
@@ -1126,25 +1326,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 27480,
+      "warningMs": 12829,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2595,
-          "output": 372,
-          "reasoning": 188
+          "input": 2642,
+          "output": 365,
+          "reasoning": 235
         },
         "write": {
-          "calls": 2,
-          "input": 4105,
-          "output": 6655,
-          "reasoning": 5863
+          "calls": 1,
+          "input": 2029,
+          "output": 2360,
+          "reasoning": 1953
         },
         "review": {
           "calls": 1,
-          "input": 2096,
-          "output": 318,
-          "reasoning": 271
+          "input": 2120,
+          "output": 236,
+          "reasoning": 189
         }
       }
     },
@@ -1162,25 +1362,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 12499,
+      "warningMs": 20073,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2464,
-          "output": 322,
-          "reasoning": 177
+          "input": 2511,
+          "output": 362,
+          "reasoning": 175
         },
         "write": {
           "calls": 1,
-          "input": 2437,
-          "output": 2336,
-          "reasoning": 1922
+          "input": 2538,
+          "output": 2604,
+          "reasoning": 2264
         },
         "review": {
           "calls": 1,
-          "input": 1961,
-          "output": 317,
-          "reasoning": 277
+          "input": 1943,
+          "output": 1359,
+          "reasoning": 1324
         }
       }
     },
@@ -1198,25 +1398,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 21614,
+      "warningMs": 19362,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2469,
+          "input": 2516,
           "output": 459,
-          "reasoning": 320
+          "reasoning": 288
         },
         "write": {
           "calls": 1,
-          "input": 2435,
-          "output": 3529,
-          "reasoning": 3124
+          "input": 2527,
+          "output": 3196,
+          "reasoning": 2745
         },
         "review": {
           "calls": 1,
-          "input": 1961,
-          "output": 1260,
-          "reasoning": 1220
+          "input": 2040,
+          "output": 1059,
+          "reasoning": 1024
         }
       }
     },
@@ -1234,25 +1434,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 58678,
+      "warningMs": 22619,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2605,
-          "output": 523,
-          "reasoning": 408
+          "input": 2652,
+          "output": 449,
+          "reasoning": 303
         },
         "write": {
-          "calls": 2,
-          "input": 5176,
-          "output": 10717,
-          "reasoning": 9976
+          "calls": 1,
+          "input": 2641,
+          "output": 4175,
+          "reasoning": 3831
         },
         "review": {
-          "calls": 2,
-          "input": 4407,
-          "output": 1978,
-          "reasoning": 1861
+          "calls": 1,
+          "input": 2220,
+          "output": 661,
+          "reasoning": 621
         }
       }
     },
@@ -1270,13 +1470,13 @@
       "factCheck": null,
       "gated": false,
       "proof": null,
-      "warningMs": 1780,
+      "warningMs": 1025,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2495,
-          "output": 304,
-          "reasoning": 249
+          "input": 2542,
+          "output": 178,
+          "reasoning": 114
         },
         "write": null,
         "review": null
@@ -1296,25 +1496,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 81809,
+      "warningMs": 51978,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2560,
-          "output": 618,
-          "reasoning": 365
+          "input": 2607,
+          "output": 875,
+          "reasoning": 715
         },
         "write": {
           "calls": 2,
-          "input": 5191,
-          "output": 16366,
-          "reasoning": 15515
+          "input": 5295,
+          "output": 11704,
+          "reasoning": 11017
         },
         "review": {
           "calls": 2,
-          "input": 4309,
-          "output": 1857,
-          "reasoning": 1753
+          "input": 4265,
+          "output": 1727,
+          "reasoning": 1617
         }
       }
     },
@@ -1332,25 +1532,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 21838,
+      "warningMs": 17794,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2656,
-          "output": 588,
-          "reasoning": 381
+          "input": 2703,
+          "output": 306,
+          "reasoning": 98
         },
         "write": {
           "calls": 1,
-          "input": 2681,
-          "output": 3346,
-          "reasoning": 2995
+          "input": 2749,
+          "output": 3300,
+          "reasoning": 2944
         },
         "review": {
           "calls": 1,
-          "input": 2284,
-          "output": 391,
-          "reasoning": 351
+          "input": 2326,
+          "output": 814,
+          "reasoning": 774
         }
       }
     },
@@ -1368,13 +1568,13 @@
       "factCheck": null,
       "gated": false,
       "proof": null,
-      "warningMs": 4701,
+      "warningMs": 1269,
       "usage": {
         "pick": {
-          "calls": 2,
-          "input": 5112,
-          "output": 1107,
-          "reasoning": 983
+          "calls": 1,
+          "input": 2587,
+          "output": 247,
+          "reasoning": 185
         },
         "write": null,
         "review": null
@@ -1387,33 +1587,23 @@
       "source": "authored",
       "provable": false,
       "error": null,
-      "outcome": "lesson",
+      "outcome": "nothing-to-teach",
       "warned": false,
       "category": null,
       "severity": null,
-      "factCheck": "passed",
+      "factCheck": null,
       "gated": false,
       "proof": null,
-      "warningMs": 27286,
+      "warningMs": 5113,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2472,
-          "output": 1216,
-          "reasoning": 1023
+          "input": 2519,
+          "output": 1165,
+          "reasoning": 1100
         },
-        "write": {
-          "calls": 1,
-          "input": 2441,
-          "output": 3751,
-          "reasoning": 3343
-        },
-        "review": {
-          "calls": 1,
-          "input": 1969,
-          "output": 1211,
-          "reasoning": 1171
-        }
+        "write": null,
+        "review": null
       }
     },
     {
@@ -1430,25 +1620,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 24698,
+      "warningMs": 17600,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2802,
-          "output": 1505,
-          "reasoning": 1258
+          "input": 2849,
+          "output": 742,
+          "reasoning": 492
         },
         "write": {
           "calls": 1,
-          "input": 2800,
-          "output": 3538,
-          "reasoning": 3207
+          "input": 2870,
+          "output": 2771,
+          "reasoning": 2338
         },
         "review": {
           "calls": 1,
-          "input": 2521,
-          "output": 463,
-          "reasoning": 423
+          "input": 2639,
+          "output": 760,
+          "reasoning": 720
         }
       }
     },
@@ -1472,44 +1662,45 @@
         "action": "read",
         "role": "anon",
         "table": "messages",
-        "query": "select * from public.get_messages_for_user('effd0b49-7bfd-41d1-82da-e766ff8fd9f3')",
+        "query": "select * from public.get_messages_for_user('d28be561-7f36-493f-b219-6201d66536b2')",
         "reason": null,
-        "agentCalls": 3,
-        "ms": 11971,
+        "publicRead": false,
+        "agentCalls": 2,
+        "ms": 7806,
         "usage": {
           "attacker": {
-            "calls": 3,
-            "input": 3408,
-            "output": 641,
-            "reasoning": 458
+            "calls": 2,
+            "input": 2261,
+            "output": 394,
+            "reasoning": 280
           },
           "judge": {
-            "calls": 1,
-            "input": 964,
-            "output": 232,
-            "reasoning": 167
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
           }
         }
       },
-      "warningMs": 14536,
+      "warningMs": 10370,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2751,
-          "output": 442,
-          "reasoning": 186
+          "input": 2798,
+          "output": 429,
+          "reasoning": 167
         },
         "write": {
           "calls": 1,
-          "input": 2219,
-          "output": 2580,
-          "reasoning": 2163
+          "input": 2226,
+          "output": 2019,
+          "reasoning": 1621
         },
         "review": {
           "calls": 1,
-          "input": 2344,
-          "output": 267,
-          "reasoning": 220
+          "input": 2365,
+          "output": 415,
+          "reasoning": 368
         }
       }
     },
@@ -1535,8 +1726,9 @@
         "table": "orders",
         "query": "select * from public.\"orders\";",
         "reason": null,
+        "publicRead": false,
         "agentCalls": 0,
-        "ms": 4273,
+        "ms": 2458,
         "usage": {
           "attacker": {
             "calls": 0,
@@ -1545,32 +1737,32 @@
             "reasoning": 0
           },
           "judge": {
-            "calls": 1,
-            "input": 913,
-            "output": 165,
-            "reasoning": 113
+            "calls": 0,
+            "input": 0,
+            "output": 0,
+            "reasoning": 0
           }
         }
       },
-      "warningMs": 11184,
+      "warningMs": 10173,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2721,
-          "output": 562,
-          "reasoning": 317
+          "input": 2768,
+          "output": 429,
+          "reasoning": 254
         },
         "write": {
           "calls": 1,
-          "input": 2186,
-          "output": 2203,
-          "reasoning": 1869
+          "input": 2184,
+          "output": 2241,
+          "reasoning": 1854
         },
         "review": {
           "calls": 1,
-          "input": 2239,
-          "output": 255,
-          "reasoning": 208
+          "input": 2307,
+          "output": 256,
+          "reasoning": 209
         }
       }
     },
@@ -1588,25 +1780,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 12469,
+      "warningMs": 12076,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2678,
-          "output": 739,
-          "reasoning": 508
+          "input": 2725,
+          "output": 606,
+          "reasoning": 433
         },
         "write": {
           "calls": 1,
-          "input": 2143,
-          "output": 1905,
-          "reasoning": 1480
+          "input": 2154,
+          "output": 2295,
+          "reasoning": 1898
         },
         "review": {
           "calls": 1,
-          "input": 2256,
-          "output": 238,
-          "reasoning": 191
+          "input": 2264,
+          "output": 169,
+          "reasoning": 122
         }
       }
     },
@@ -1617,11 +1809,11 @@
       "source": "generated",
       "provable": false,
       "error": null,
-      "outcome": "nothing-to-teach",
+      "outcome": "lesson",
       "warned": false,
       "category": null,
       "severity": null,
-      "factCheck": null,
+      "factCheck": "passed",
       "gated": false,
       "proof": {
         "status": "not-reproduced",
@@ -1632,14 +1824,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
+        "publicRead": false,
         "agentCalls": 12,
-        "ms": 68704,
+        "ms": 60267,
         "usage": {
           "attacker": {
             "calls": 12,
-            "input": 15198,
-            "output": 11436,
-            "reasoning": 10649
+            "input": 15350,
+            "output": 11121,
+            "reasoning": 10337
           },
           "judge": {
             "calls": 0,
@@ -1649,16 +1842,26 @@
           }
         }
       },
-      "warningMs": 6993,
+      "warningMs": 22295,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2581,
-          "output": 1224,
-          "reasoning": 1149
+          "input": 2628,
+          "output": 1845,
+          "reasoning": 1594
         },
-        "write": null,
-        "review": null
+        "write": {
+          "calls": 1,
+          "input": 2627,
+          "output": 3204,
+          "reasoning": 2809
+        },
+        "review": {
+          "calls": 1,
+          "input": 2133,
+          "output": 676,
+          "reasoning": 636
+        }
       }
     },
     {
@@ -1675,25 +1878,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 18359,
+      "warningMs": 10977,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2720,
-          "output": 253,
-          "reasoning": 121
+          "input": 2767,
+          "output": 317,
+          "reasoning": 126
         },
         "write": {
           "calls": 1,
-          "input": 2153,
-          "output": 2963,
-          "reasoning": 2570
+          "input": 2152,
+          "output": 1820,
+          "reasoning": 1439
         },
         "review": {
           "calls": 1,
-          "input": 2290,
-          "output": 281,
-          "reasoning": 234
+          "input": 2315,
+          "output": 308,
+          "reasoning": 261
         }
       }
     },
@@ -1719,14 +1922,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
+        "publicRead": false,
         "agentCalls": 11,
-        "ms": 58597,
+        "ms": 57465,
         "usage": {
           "attacker": {
             "calls": 12,
-            "input": 16638,
-            "output": 9429,
-            "reasoning": 8755
+            "input": 16737,
+            "output": 10923,
+            "reasoning": 10147
           },
           "judge": {
             "calls": 0,
@@ -1736,25 +1940,25 @@
           }
         }
       },
-      "warningMs": 21619,
+      "warningMs": 42353,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2683,
-          "output": 371,
-          "reasoning": 122
+          "input": 2730,
+          "output": 465,
+          "reasoning": 227
         },
         "write": {
-          "calls": 1,
-          "input": 2688,
-          "output": 3824,
-          "reasoning": 3474
+          "calls": 2,
+          "input": 5556,
+          "output": 9323,
+          "reasoning": 8552
         },
         "review": {
-          "calls": 1,
-          "input": 2319,
-          "output": 677,
-          "reasoning": 637
+          "calls": 2,
+          "input": 4756,
+          "output": 1417,
+          "reasoning": 1318
         }
       }
     },
@@ -1772,25 +1976,25 @@
       "factCheck": "passed",
       "gated": false,
       "proof": null,
-      "warningMs": 23185,
+      "warningMs": 22484,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2822,
-          "output": 1265,
-          "reasoning": 1044
+          "input": 2869,
+          "output": 655,
+          "reasoning": 384
         },
         "write": {
           "calls": 1,
-          "input": 2772,
-          "output": 3194,
-          "reasoning": 2780
+          "input": 2862,
+          "output": 3949,
+          "reasoning": 3480
         },
         "review": {
           "calls": 1,
-          "input": 2543,
-          "output": 540,
-          "reasoning": 500
+          "input": 2631,
+          "output": 1140,
+          "reasoning": 1100
         }
       }
     },
@@ -1816,14 +2020,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
-        "agentCalls": 12,
-        "ms": 66206,
+        "publicRead": false,
+        "agentCalls": 11,
+        "ms": 65794,
         "usage": {
           "attacker": {
             "calls": 12,
-            "input": 15416,
-            "output": 10570,
-            "reasoning": 9744
+            "input": 15707,
+            "output": 12116,
+            "reasoning": 11392
           },
           "judge": {
             "calls": 0,
@@ -1833,25 +2038,25 @@
           }
         }
       },
-      "warningMs": 15774,
+      "warningMs": 10219,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2479,
-          "output": 912,
-          "reasoning": 694
+          "input": 2526,
+          "output": 503,
+          "reasoning": 328
         },
         "write": {
           "calls": 1,
-          "input": 1979,
-          "output": 2669,
-          "reasoning": 2298
+          "input": 1987,
+          "output": 1751,
+          "reasoning": 1346
         },
         "review": {
           "calls": 1,
-          "input": 1884,
-          "output": 394,
-          "reasoning": 347
+          "input": 1958,
+          "output": 399,
+          "reasoning": 352
         }
       }
     },
@@ -1875,16 +2080,17 @@
         "action": "delete",
         "role": "bob",
         "table": "notes",
-        "query": "select public.clear_user_notes('a7e4867a-1bde-4c26-8cfb-0040d6882ee3')",
+        "query": "select public.clear_user_notes('70c380db-38ab-45c4-8303-9a21e69fe729')",
         "reason": null,
+        "publicRead": false,
         "agentCalls": 2,
-        "ms": 8707,
+        "ms": 7959,
         "usage": {
           "attacker": {
-            "calls": 3,
-            "input": 3335,
-            "output": 778,
-            "reasoning": 564
+            "calls": 2,
+            "input": 2238,
+            "output": 533,
+            "reasoning": 398
           },
           "judge": {
             "calls": 0,
@@ -1894,25 +2100,25 @@
           }
         }
       },
-      "warningMs": 14355,
+      "warningMs": 12763,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2582,
-          "output": 493,
-          "reasoning": 244
+          "input": 2629,
+          "output": 576,
+          "reasoning": 390
         },
         "write": {
           "calls": 1,
-          "input": 2043,
-          "output": 2282,
-          "reasoning": 1887
+          "input": 2049,
+          "output": 2325,
+          "reasoning": 1985
         },
         "review": {
           "calls": 1,
-          "input": 2004,
-          "output": 331,
-          "reasoning": 284
+          "input": 1994,
+          "output": 301,
+          "reasoning": 254
         }
       }
     },
@@ -1923,11 +2129,11 @@
       "source": "held-out",
       "provable": false,
       "error": null,
-      "outcome": "lesson",
+      "outcome": "lesson-failed",
       "warned": false,
       "category": null,
       "severity": null,
-      "factCheck": "passed",
+      "factCheck": "failed",
       "gated": false,
       "proof": {
         "status": "not-reproduced",
@@ -1938,14 +2144,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
-        "agentCalls": 9,
-        "ms": 57511,
+        "publicRead": false,
+        "agentCalls": 11,
+        "ms": 60871,
         "usage": {
           "attacker": {
-            "calls": 10,
-            "input": 12477,
-            "output": 9900,
-            "reasoning": 9208
+            "calls": 12,
+            "input": 15566,
+            "output": 11602,
+            "reasoning": 10820
           },
           "judge": {
             "calls": 0,
@@ -1955,25 +2162,25 @@
           }
         }
       },
-      "warningMs": 21404,
+      "warningMs": 62004,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2565,
-          "output": 1094,
-          "reasoning": 904
+          "input": 2612,
+          "output": 1014,
+          "reasoning": 754
         },
         "write": {
-          "calls": 1,
-          "input": 2530,
-          "output": 3158,
-          "reasoning": 2774
+          "calls": 2,
+          "input": 5390,
+          "output": 13010,
+          "reasoning": 12224
         },
         "review": {
-          "calls": 1,
-          "input": 2027,
-          "output": 461,
-          "reasoning": 421
+          "calls": 2,
+          "input": 4126,
+          "output": 1880,
+          "reasoning": 1639
         }
       }
     },
@@ -1999,14 +2206,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
-        "agentCalls": 11,
-        "ms": 85141,
+        "publicRead": false,
+        "agentCalls": 10,
+        "ms": 74923,
         "usage": {
           "attacker": {
-            "calls": 12,
-            "input": 14709,
-            "output": 13936,
-            "reasoning": 12942
+            "calls": 11,
+            "input": 13568,
+            "output": 14300,
+            "reasoning": 13512
           },
           "judge": {
             "calls": 0,
@@ -2016,25 +2224,25 @@
           }
         }
       },
-      "warningMs": 21271,
+      "warningMs": 44438,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2901,
-          "output": 918,
-          "reasoning": 675
+          "input": 2948,
+          "output": 640,
+          "reasoning": 368
         },
         "write": {
-          "calls": 1,
-          "input": 2900,
-          "output": 3535,
-          "reasoning": 3194
+          "calls": 2,
+          "input": 6076,
+          "output": 9142,
+          "reasoning": 8388
         },
         "review": {
-          "calls": 1,
-          "input": 2718,
-          "output": 466,
-          "reasoning": 426
+          "calls": 2,
+          "input": 5570,
+          "output": 1411,
+          "reasoning": 1271
         }
       }
     },
@@ -2059,15 +2267,16 @@
         "role": null,
         "table": null,
         "query": null,
-        "reason": "no query reached Alice's rows",
-        "agentCalls": 11,
-        "ms": 79444,
+        "reason": "ran out of time before reaching Alice's rows",
+        "publicRead": false,
+        "agentCalls": 12,
+        "ms": 97667,
         "usage": {
           "attacker": {
-            "calls": 12,
-            "input": 14573,
-            "output": 13603,
-            "reasoning": 12700
+            "calls": 13,
+            "input": 16442,
+            "output": 18194,
+            "reasoning": 17212
           },
           "judge": {
             "calls": 0,
@@ -2077,25 +2286,25 @@
           }
         }
       },
-      "warningMs": 28282,
+      "warningMs": 51932,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2815,
-          "output": 717,
-          "reasoning": 397
+          "input": 2862,
+          "output": 689,
+          "reasoning": 412
         },
         "write": {
-          "calls": 1,
-          "input": 2834,
-          "output": 4166,
-          "reasoning": 3739
+          "calls": 2,
+          "input": 5789,
+          "output": 11229,
+          "reasoning": 10430
         },
         "review": {
-          "calls": 1,
-          "input": 2547,
-          "output": 530,
-          "reasoning": 490
+          "calls": 2,
+          "input": 5125,
+          "output": 1555,
+          "reasoning": 1446
         }
       }
     },
@@ -2121,14 +2330,15 @@
         "table": null,
         "query": null,
         "reason": "no query reached Alice's rows",
-        "agentCalls": 8,
-        "ms": 65231,
+        "publicRead": false,
+        "agentCalls": 11,
+        "ms": 78412,
         "usage": {
           "attacker": {
-            "calls": 8,
-            "input": 10115,
-            "output": 11794,
-            "reasoning": 11170
+            "calls": 11,
+            "input": 14949,
+            "output": 14948,
+            "reasoning": 14218
           },
           "judge": {
             "calls": 0,
@@ -2138,25 +2348,25 @@
           }
         }
       },
-      "warningMs": 15151,
+      "warningMs": 42999,
       "usage": {
         "pick": {
           "calls": 1,
-          "input": 2659,
-          "output": 395,
-          "reasoning": 209
+          "input": 2706,
+          "output": 520,
+          "reasoning": 222
         },
         "write": {
-          "calls": 1,
-          "input": 2664,
-          "output": 2213,
-          "reasoning": 1867
+          "calls": 2,
+          "input": 5635,
+          "output": 8589,
+          "reasoning": 7924
         },
         "review": {
-          "calls": 1,
-          "input": 2264,
-          "output": 532,
-          "reasoning": 492
+          "calls": 2,
+          "input": 4572,
+          "output": 2330,
+          "reasoning": 2206
         }
       }
     }

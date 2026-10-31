@@ -55,18 +55,18 @@ a commit or pull request diff
 
 ## What we measured
 
-`npm run eval` runs commits with known answers through everything a builder gets: signals, picker, writer, fact check, then the prover. Two full runs on Modal (October 31, commit `ba440f5`) gave the same answer on all 43 commits. Full tables: [samples/eval/eval-report.md](samples/eval/eval-report.md), and the [second run](samples/eval/eval-report-run2.md).
+`npm run eval` runs commits with known answers through everything a builder gets: signals, picker, writer, fact check, then the prover. Two full runs on Modal (October 31, commit `f5b49e7`) gave the same warning and proof result on all 46 commits. Full tables: [samples/eval/eval-report.md](samples/eval/eval-report.md), and the [second run](samples/eval/eval-report-run2.md).
 
 | Measure | Result, both runs |
 |---|---|
-| Warnings on risky commits | **20 of 21** |
-| False warnings on safe commits | **0 of 22** |
-| Proofs on data-exposure cases the sandbox can reach | **10 of 10**: 4 by the standard probes, 6 by the attacker model |
-| False proofs on safe commits | **0**, in the product and with the prover forced on all 12 safe commits that have a database |
-| Time to the card | median 16–18 s, p90 45–53 s |
-| Time for a proof that succeeds | median 7–9 s, slowest 20 s |
+| Warnings on risky commits | **21 of 22** |
+| False warnings on safe commits | **0 of 24** |
+| Proofs on data-exposure cases the sandbox can reach | **11 of 11**: 5 by the standard probes, 6 by the attacker model |
+| False proofs on safe commits | **0**, in the product and with the prover forced on all 14 safe commits that have a database |
+| Time to the card | median 16 s, p90 44–53 s |
+| Time for a proof that succeeds | median 7–8 s, slowest 18 s |
 | Time for a proof that finds nothing | about 60–90 s: the attacker uses its whole budget |
-| Cost | about 22,000 tokens and $0.06 per commit, $2.50 for a full run |
+| Cost | about 22,000 tokens and $0.05–0.06 per commit, about $2.50 for a full run |
 
 Cost uses $1.25 per million input tokens and $4.25 per million output, the rate price trackers list for both models, not their own price pages. Treat it as an order of magnitude.
 
@@ -74,20 +74,20 @@ Cost uses $1.25 per million input tokens and $4.25 per million output, the rate 
 
 | Leak | Probes alone | With the attacker | Calls, median | Time, median | Tokens, median |
 |---|---|---|---|---|---|
-| Private notes copied by a trigger into a table any signed-in user can read | nothing | **10 of 10** | 5 | 36 s | 8,900 |
-| `security definer` function that never checks the caller | nothing | **10 of 10** | 2 | 21 s | 4,100 |
-| Insert rule that checks the wrong column: Bob sets `id` to his own id and `owner_id` to Alice's | nothing | **10 of 10** | 4 | 37 s | 6,300 |
-| View that skips row level security | nothing | **10 of 10** | 2 | 20 s | 3,900 |
+| Private notes copied by a trigger into a table any signed-in user can read | nothing | **10 of 10** | 6 | 30 s | 9,000 |
+| `security definer` function that never checks the caller | nothing | **10 of 10** | 2 | 19 s | 2,800 |
+| Insert rule that checks the wrong column: Bob sets `id` to his own id and `owner_id` to Alice's | nothing | **10 of 10** | 4 | 32 s | 6,500 |
+| View that skips row level security | nothing | **10 of 10** | 2 | 18 s | 2,600 |
 
 It also proved a shape nothing was written for: a function that deletes a person's notes, called by Bob, in both held-out runs.
 
 **How far to trust these numbers.**
-- **The hand-written score is flattering.** 14 of 14 risky and 0 of 15 safe, but those commits and Lucid's prompts and signals were tuned together, on the same kinds of mistake. It shows the rules do what they were written to do. It is not a detection rate for the world.
+- **The hand-written score is flattering.** 15 of 15 risky and 0 of 17 safe, but those commits and Lucid's prompts and signals were tuned together, on the same kinds of mistake. It shows the rules do what they were written to do. It is not a detection rate for the world.
 - **The held-out commits are the fairest number, and there are only six.** Muse Spark wrote them after the prompts and signals were frozen, in shapes those never mention, and nothing was tuned on them afterwards: **2 of 3 risky caught, 0 of 3 safe warned, 1 of 1 provable leak proven.** The miss: anyone could add themselves to any team, and Lucid wrote a lesson instead of a warning, both times.
 - **Two held-out labels were corrected by hand** before any Lucid run, after testing them with plain SQL in the sandbox. One commit asked to be risky came out safe, and one risky commit turned out not to be provable. The reasons are in the fixture files (`auditNote`). Every generated commit was read by a person.
 - **The generated commits aren't independent.** They come from the same model family that detects them.
 - **The attacker is told where leaks hide.** Its prompt names views, definer functions and insert rules. Two of the four leaks above (the copied table and the view) could be caught by a plain probe of every table and view. The insert rule is the one that really takes reading and reasoning.
-- **10 of 10 means 10 of the cases the sandbox can reach.** It says nothing about leaks it can't, below.
+- **11 of 11 means 11 of the cases the sandbox can reach.** It says nothing about leaks it can't, below.
 
 ## Limits
 
@@ -96,7 +96,8 @@ It also proved a shape nothing was written for: a function that deletes a person
 - **Proofs are in a sandbox, with synthetic data.** Two fake users in a throwaway copy of your database setup, a close copy of Supabase rather than your project. A proof says your rules allow this. It never says real data leaked.
 - **It can only attack what it can fill.** Fake rows go into tables with an owner column. A table whose rows belong to someone through another table, like team documents, stays empty, so a leak there can't be proven.
 - **It can't forge a sign-in.** Alice's and Bob's tokens are fixed, so a rule that trusts something a person can edit in their own token gets a warning but no proof.
-- **The attack runs SQL directly**, as the `anon` and `authenticated` roles. The real API exposes less (tables, views and functions), so a proof built on raw SQL might be harder to pull off through your app. All 10 proofs above were plain reads, inserts or function calls.
+- **The attack runs SQL directly**, as the `anon` and `authenticated` roles. The real API exposes less (tables, views and functions), so a proof built on raw SQL might be harder to pull off through your app. All 11 proofs above were plain reads, inserts or function calls.
+- **Telling "published" from "leaked" is a judgement from names.** Lucid doesn't prove a read when the commit clearly means to publish, and it can be fooled: a private table that happens to be called public, or private scores in a column named `score`, won't be proven. It errs toward no proof when the names say public, and toward a proof when they look private, even if the commit says public.
 - **Migrations and schema files only.** Schemas kept in Prisma, Drizzle or the Supabase dashboard aren't read.
 
 ## The warning card
@@ -163,7 +164,10 @@ So if none of them gets through, the attacker model (Muse Spark 1.3) takes over.
 
 **Ground truth decides, never the model.** A read counts only when Alice's marker came back to the visitor or Bob. A change, delete or new row in her name counts only when Alice's rows, fingerprinted by the superuser, changed, vanished or grew. That check is plain code, and no model can pass it by saying so. Then:
 - **Before vs after.** The exact query runs again on the database as it was before the commit. Lucid keeps looking until it finds something this commit opened ("Before your commit: blocked. After: leaked."). If everything it reached was already open before, the card says so ("Before your commit: also open.").
-- **The privacy judge** (Muse Spark Open) can take a proof away, never add one. A read of data clearly meant for everyone (published posts, a product list) is no proof. It sees the columns and rules, the query, the view or function it went through, and two facts Lucid checked by running them: this person's plain read of the table was blocked, and this query was blocked before the commit. A commit that opens a table is no evidence the table was meant to be open.
+- **Public on purpose isn't a leak.** "Blocked before this commit" counts for nothing here: every commit that opens a table was blocked before. Plain code looks at the columns that really came back, and at what the commit says.
+  - Private-looking names (email, phone, address, payment, private, notes…): the proof stands, even if the commit calls it public.
+  - A clear intent to publish (a table, view or new rule named public, published or leaderboard, a comment saying so, or only public-looking columns such as a display name and avatar): no proof. If there is a warning, it says: *This change makes `leaderboard` readable by anyone. If that's intended, you can ignore this.*
+  - Anything else goes to **the privacy judge** (Muse Spark Open), which can take a proof away, never add one. It sees the columns and rules, the commit, the query, the view or function it went through, and whether this person's plain read of the table was blocked.
 
 **What "Proven" means, and doesn't.** *Reproduced unauthorized access against fake users, using your database rules, in a disposable sandbox.* It does not mean real people's data was exposed, and the sandbox is a close copy of Supabase, not your project: no storage, no real auth server, only some extensions. "Not reproduced" is never a safety claim. **A safety net, not a security audit.**
 
@@ -175,7 +179,9 @@ So if none of them gets through, the attacker model (Muse Spark 1.3) takes over.
 |---|---|---|
 | a–c: row level security off, `using (true)`, owner check removed | proven, by the probes | 3 of 3 each, about 11 s from a laptop |
 | f–i: the four leaks in [What we measured](#what-we-measured) | proven, by the attacker model only | 10 of 10 each |
+| q: a table of emails and phones opened, under a rule called "public profile pages" | proven, by the probes | 3 of 3, and in both evaluation runs |
 | d, e, j–n: owner-only rules, a public blog, and safe look-alikes of f–i | never proven | 0 proofs in either evaluation run |
+| o, p: a leaderboard and a `public_profiles` table (display name and avatar only), closed before and opened on purpose | never proven | 0 of 3 each, and 0 proofs in either evaluation run |
 
 A sandbox costs about $0.000015 a second (1 CPU, 1 GiB), so about $0.0001 for a proof and $0.001 for a long miss, plus the model calls: about 1,000 tokens for the judge, and up to about 25,000 when the attacker model uses its whole budget.
 
