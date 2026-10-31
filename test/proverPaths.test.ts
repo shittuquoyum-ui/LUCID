@@ -24,6 +24,7 @@ const { applyProof, NOT_REPRODUCED_NOTE, proofSentence, publicNote } = await imp
 const { renderCardHtml } = await import('../src/ui/cardHtml');
 const { askProve, cardAfterProof, proveRequest, touchesDatabase, wantsProof } = await import('../extension/src/prove');
 const { provenToast } = await import('../extension/src/messages');
+const { CardVersions } = await import('../extension/src/cards');
 const { parseDiff } = await import('../src/engine/diff');
 const { handleProve } = await import('../src/server/handler');
 const { DailyLimits } = await import('../src/server/limits');
@@ -327,6 +328,37 @@ describe('a proven card never implies real data leaked', () => {
   it('describes a row added in Alice’s name', () => {
     expect(proofSentence(proven)).toBe("In a disposable sandbox with fake users, another signed-in user (Bob) added a row in Alice's name in `notes`. Before your commit: blocked. After: allowed.");
     expect(proofSentence({ ...proven, rows: 2 })).toContain('added 2 rows in Alice');
+  });
+});
+
+describe('a toast opened after the proof landed', () => {
+  it('shows the proven card, not the warning it was made with', () => {
+    const versions = new CardVersions();
+    const updated = applyProof(card, { ...proven, action: 'read' });
+    expect(versions.latest(card)).toBe(card);
+    versions.replace(card, updated);
+    expect(versions.latest(card)).toBe(updated);
+    expect(renderCardHtml(versions.latest(card))).toContain('<span class="badge">Proven</span>');
+  });
+
+  it('follows its own card, never another commit’s', () => {
+    const versions = new CardVersions();
+    const second = { ...card, title: 'Another commit' };
+    const updated = applyProof(card, { ...proven, action: 'read' });
+    versions.replace(card, updated);
+    expect(versions.latest(second)).toBe(second);
+    expect(versions.latest(card).title).toBe(card.title);
+  });
+
+  it('follows more than one change, and shows the quiet line when the proof failed', () => {
+    const versions = new CardVersions();
+    const noted = cardAfterProof(card, { kind: 'problem', message: NOT_REPRODUCED_NOTE });
+    const later = applyProof(noted, { ...proven, action: 'read' });
+    versions.replace(card, noted);
+    expect(versions.latest(card)).toBe(noted);
+    expect(noted.proofNote).toBe(NOT_REPRODUCED_NOTE);
+    versions.replace(noted, later);
+    expect(versions.latest(card)).toBe(later);
   });
 });
 

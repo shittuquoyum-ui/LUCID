@@ -2,7 +2,7 @@
   "name": "lucid",
   "displayName": "Lucid",
   "description": "Flags database leaks and other risks in each commit before you ship them, and explains your changes in plain English.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "publisher": "lucid-dev",
   "repository": {
     "type": "git",

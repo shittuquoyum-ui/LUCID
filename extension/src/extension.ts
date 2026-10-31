@@ -25,6 +25,7 @@ import { providePrompts } from '../../src/engine/prompts';
 import { reportLines } from '../../src/terminal';
 import { renderCardHtml } from '../../src/ui/cardHtml';
 import { commitDiff, commitSubject, fileAt, filesAt, headCommit, lastReflogSubject, parentsOf, type CommitRef, type GitApi, type GitExtension, type GitRepository } from './git';
+import { CardVersions } from './cards';
 import { askProve, cardAfterProof, proveRequest, wantsProof, type CommitFiles } from './prove';
 import { MISSING_KEYS, NO_LESSON, plainReason, provenToast } from './messages';
 import { askServer, DEFAULT_SERVER_URL } from './server';
@@ -58,6 +59,7 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   let lastCard: Card | undefined;
+  const versions = new CardVersions();
   /** The card the panel is showing; Copy uses its fix prompt, never text sent back by the page. */
   let shownCard: Card | undefined;
   let panel: vscode.WebviewPanel | undefined;
@@ -133,6 +135,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   /** A card changed after it was shown (the prover's result): keep the newest, redraw it if it is open. */
   const replaceCard = (old: Card, updated: Card) => {
+    versions.replace(old, updated);
     if (lastCard === old) lastCard = updated;
     if (panel && shownCard === old) {
       shownCard = updated;
@@ -199,8 +202,9 @@ export function activate(context: vscode.ExtensionContext): void {
     console.log(`[Lucid] ${sha.slice(0, 7)}\n${report.join('\n')}`);
     if (card?.kind === 'risk') {
       lastCard = card;
+      // The toast may still be up when the proof lands: show what the card is by then.
       void vscode.window.showWarningMessage(`⚠️ Lucid: ${card.title}`, 'Show me', 'Later').then((choice) => {
-        if (choice === 'Show me') showCard(card);
+        if (choice === 'Show me') showCard(versions.latest(card));
       });
     } else if (card) {
       if (!lessonsOn()) return;
