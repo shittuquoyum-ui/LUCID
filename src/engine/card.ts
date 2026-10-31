@@ -86,7 +86,7 @@ export interface ProofView {
   query: string;
   table: string;
   role: 'anon' | 'bob';
-  action: 'read' | 'update' | 'delete';
+  action: 'read' | 'update' | 'delete' | 'insert';
   rows: number;
   before: ProofResult['before'];
 }
@@ -107,9 +107,10 @@ const BEFORE_WORDS: Record<ProofResult['before'], string> = {
 export const proofSentence = (r: Pick<ProofResult, 'role' | 'action' | 'rows' | 'table' | 'before'>): string => {
   const who = r.role === 'anon' ? 'a signed-out visitor' : 'another signed-in user (Bob)';
   const whose = (kind: string) => (r.rows === 1 ? `Alice's ${kind}row` : `${r.rows} of Alice's ${kind}rows`);
-  const did = { read: `read ${whose('private ')}`, update: `changed ${whose('')}`, delete: `deleted ${whose('')}` }[r.action ?? 'read'];
+  const added = r.rows === 1 ? 'a row' : `${r.rows} rows`;
+  const did = { read: `read ${whose('private ')}`, update: `changed ${whose('')}`, delete: `deleted ${whose('')}`, insert: `added ${added} in Alice's name` }[r.action ?? 'read'];
   const after = r.action === 'read' ? 'leaked' : 'allowed';
-  const where = r.action === 'update' ? 'in' : 'from';
+  const where = r.action === 'update' || r.action === 'insert' ? 'in' : 'from';
   return `In a disposable sandbox with fake users, ${who} ${did} ${where} \`${r.table}\`. Before your commit: ${BEFORE_WORDS[r.before]}. After: ${after}.`;
 };
 

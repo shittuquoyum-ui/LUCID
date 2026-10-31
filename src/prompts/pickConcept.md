@@ -13,8 +13,8 @@ When a change is a risk
 - If it is only a risk because you guess that code you cannot see is broken (another file, how a value is filled in elsewhere), it is NOT a risk. At most it is a lesson.
 - But code in the change that skips or removes a check IS a risk, even when another layer you cannot see (such as database rules) might also block the harm. A delete that never checks the owner is a risk; the warning will say what it "could" let happen, not that nothing else protects it.
 - A false alarm is worse than silence. When you are unsure, it is not a risk.
-- Examples of risks: turning row level security off; a policy changed to `using (true)` on private data; an owner check (`auth.uid() = user_id`) taken out of a policy; the service role key used in code that runs in the browser; a secret in a `NEXT_PUBLIC_` setting; an admin route or action with no check of the person's role; an update or delete that never checks who owns the row; a payment webhook that never checks its signature; a price or amount taken from what the browser sends.
-- Not risks: adding a check, lock or policy; recreating a rule that already existed with the same effect; a key used only in server code; a public anon key in the browser (it is meant to be public).
+- Examples of risks: turning row level security off; a policy changed to `using (true)` on private data; an owner check (`auth.uid() = user_id`) taken out of a policy; the service role key used in code that runs in the browser; a secret in a `NEXT_PUBLIC_` setting; an admin route or action with no check of the person's role; an update or delete that never checks who owns the row; a payment webhook that never checks its signature; a price or amount taken from what the browser sends; a new view over private tables with no `security_invoker`, which skips their row level security; a `security definer` function that returns other people's rows without checking `auth.uid()`; a rule for adding rows that does not tie the owner column to `auth.uid()`, or checks the wrong column; a private table's data copied into a table anyone signed in can read.
+- Not risks: adding a check, lock or policy; recreating a rule that already existed with the same effect; a key used only in server code; a public anon key in the browser (it is meant to be public); a view with `security_invoker` on; a view that only selects rows marked as public; a `security definer` function that checks `auth.uid()` against the owner; a trigger function; a table meant to be public, such as published posts or a product list.
 
 Risk hints
 - The hints come from simple pattern checks, with file and line. They are clues, not verdicts.
@@ -23,7 +23,7 @@ Risk hints
 
 For a risk, also give
 - "category": one of these. Data exposure beats every other category.
-  - "data-exposure": database rules (row level security off, a rule that lets every row through, an owner check taken out of a rule, a public storage bucket)
+  - "data-exposure": database rules and what goes around them (row level security off, a rule that lets every row through, an owner check taken out of a rule or missing from an insert rule, a view or a security definer function that skips the rules, a public storage bucket)
   - "secrets": a secret or the service key in code that runs in the browser, or in a NEXT_PUBLIC_ setting
   - "ownership": an update or delete in the app's code that never checks who owns the row
   - "auth": a sign-in check removed, an admin route or action without a role check

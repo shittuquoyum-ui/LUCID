@@ -56,6 +56,8 @@ export const prepareSetupFiles = (files: SetupFile[]): SetupFile[] | null => {
 export interface Touched {
   tables: string[];
   policies: string[];
+  views: string[];
+  functions: string[];
 }
 
 /** "public"."Notes" -> notes; auth.users stays auth.users. */
@@ -68,8 +70,10 @@ const NAME = String.raw`((?:"[^"]+"|[\w]+)(?:\s*\.\s*(?:"[^"]+"|[\w]+))?)`;
 const TABLE_STATEMENT = new RegExp(String.raw`\b(?:create|alter|drop)\s+table\s+(?:if\s+(?:not\s+)?exists\s+)?(?:only\s+)?${NAME}`, 'gi');
 const POLICY_STATEMENT = new RegExp(String.raw`\b(?:create|alter|drop)\s+policy\s+(?:if\s+exists\s+)?("[^"]+"|\w+)\s+on\s+${NAME}`, 'gi');
 const GRANT_ON = new RegExp(String.raw`\b(?:grant|revoke)\b[^;]*?\bon\s+(?:table\s+)?${NAME}`, 'gi');
+const VIEW_STATEMENT = new RegExp(String.raw`\b(?:create|alter|drop)\s+(?:or\s+replace\s+)?(?:materialized\s+)?view\s+(?:if\s+(?:not\s+)?exists\s+)?${NAME}`, 'gi');
+const FUNCTION_STATEMENT = new RegExp(String.raw`\b(?:create|alter|drop)\s+(?:or\s+replace\s+)?function\s+(?:if\s+exists\s+)?${NAME}`, 'gi');
 
-/** Tables and policies named in the setup lines a commit added or removed. */
+/** Tables, policies, views and functions named in the setup lines a commit added or removed. */
 export const touchedObjects = (files: DiffFile[]): Touched => {
   const text = files
     .filter((f) => isSetupPath(f.path))
@@ -83,5 +87,11 @@ export const touchedObjects = (files: DiffFile[]): Touched => {
     policies.add(m[1]!.replace(/"/g, ''));
     tables.add(tableName(m[2]!));
   }
-  return { tables: [...tables].filter((t) => !t.startsWith('auth.') && !t.startsWith('storage.')), policies: [...policies] };
+  const namesOf = (re: RegExp) => [...new Set([...text.matchAll(re)].map((m) => tableName(m[1]!)))];
+  return {
+    tables: [...tables].filter((t) => !t.startsWith('auth.') && !t.startsWith('storage.')),
+    policies: [...policies],
+    views: namesOf(VIEW_STATEMENT),
+    functions: namesOf(FUNCTION_STATEMENT),
+  };
 };

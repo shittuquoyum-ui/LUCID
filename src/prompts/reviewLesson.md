@@ -20,6 +20,7 @@ Step 2: check the claims ("claimsTrue", "wrongClaims")
   - other files, the database and its rules, middleware, other pages, settings;
   - what was possible or what happened BEFORE, unless the removed or unchanged lines shown prove it ("before, anyone could open the admin page", "people could sign up with no email");
   - what people can or cannot do in the whole app ("people can no longer…", "nobody can now…"), when the change only shows one piece of code checking something.
+- A "RULE TIGHTENED" note above the change lists a rule whose old and new versions are both shown. A claim about what that old rule allowed is proven by its removed line, so it is true. A claim that data was actually read or exposed before is still wrong.
 - A newly added check proves that this code now checks. It does not prove that nothing checked before, or that the whole app is now safe. A title like "People can no longer open the admin page" is a wrong claim; "Your admin page now checks who is looking" is fine.
 - Plain, simplified wording is fine if it is true. Do not flag a claim only for being simple, or for leaving details out.
 - For each wrong claim, write one sentence in "wrongClaims": quote the wrong words and say what is actually true. Example: "The title says people can now reset their password by email, but that reset link already worked before; this change only moves it."

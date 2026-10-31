@@ -3,8 +3,9 @@
 // them at /app/prompts, which is where the engine looks (../prompts from
 // /app/dist/server.mjs).
 //
-// Also bundles the prover's integration test (dist/prove-fixtures.mjs), which
-// the prove_fixtures function in deploy/modal_app.py runs in the same image.
+// Also bundles the prover's integration test (dist/prove-fixtures.mjs) and the
+// red-team evaluation (dist/eval.mjs), which the prove_fixtures and run_eval
+// functions in deploy/modal_app.py run in the same image.
 import * as esbuild from 'esbuild';
 
 const common = {
@@ -19,3 +20,4 @@ const common = {
 
 await esbuild.build({ ...common, entryPoints: ['src/server/main.ts'], outfile: 'dist/server.mjs' });
 await esbuild.build({ ...common, entryPoints: ['scripts/prove-fixtures.ts'], outfile: 'dist/prove-fixtures.mjs' });
+await esbuild.build({ ...common, entryPoints: ['scripts/eval.ts'], outfile: 'dist/eval.mjs' });

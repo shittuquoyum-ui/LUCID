@@ -1,0 +1,15 @@
+{
+  "id": "gen-public-catalog",
+  "label": "safe",
+  "provable": false,
+  "what": "genuinely public table",
+  "description": "A Supabase migration that adds a products table for a public catalog (name, description, price). There is no user data in it. Everyone may read it, and no one may write to it through the app.",
+  "model": "muse-spark-1.3",
+  "title": "add products catalog table",
+  "files": [
+    {
+      "path": "supabase/migrations/20261031000000_add_products_catalog.sql",
+      "text": "create table public.products (\n  id uuid primary key default gen_random_uuid(),\n  name text not null,\n  description text,\n  price numeric(10,2) not null,\n  created_at timestamptz not null default now()\n);\n\nalter table public.products enable row level security;\n\ncreate policy \"anyone can read products\"\n  on public.products for select\n  using (true);\n"
+    }
+  ]
+}

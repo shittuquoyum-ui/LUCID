@@ -18,6 +18,8 @@ export interface ProofResult {
   rows: number;
   /** The exact query that did it. */
   query: string | null;
+  /** Who wrote that query: the standard probes, or the attacker model. */
+  foundBy: 'probe' | 'attacker' | null;
   /** The same query on the database as it was before the commit. */
   before: BeforeState;
   /** Why there is no proof (or what went wrong). */

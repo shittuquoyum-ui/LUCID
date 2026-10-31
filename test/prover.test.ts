@@ -116,10 +116,13 @@ describe('the files that go to the prover', () => {
   });
 
   it('names the tables and policies each fixture commit touched', () => {
-    expect(proverCommit('a').touched).toEqual({ tables: ['notes'], policies: [] });
-    expect(proverCommit('b').touched).toEqual({ tables: ['notes'], policies: ['owners read their notes', 'anyone can read notes'] });
+    expect(proverCommit('a').touched).toEqual({ tables: ['notes'], policies: [], views: [], functions: [] });
+    expect(proverCommit('b').touched).toEqual({ tables: ['notes'], policies: ['owners read their notes', 'anyone can read notes'], views: [], functions: [] });
     expect(proverCommit('d').touched.tables).toEqual(['invoices']);
     expect(touchedObjects(parseDiff(proverCommit('e').diff)).tables).toEqual(['posts']);
+    expect(proverCommit('g').touched).toEqual({ tables: [], policies: [], views: [], functions: ['notes_for_user'] });
+    expect(proverCommit('i').touched).toEqual({ tables: [], policies: [], views: ['notes_feed'], functions: [] });
+    expect(proverCommit('f').touched.tables).toEqual(['public.notes', 'note_versions'].map((t) => t.replace('public.', '')));
   });
 
   it('come from the commit and its parent in the extension, setup files only', async () => {
@@ -184,7 +187,7 @@ describe('ground truth', () => {
   it('proves a read only when Alice’s canary came back', async () => {
     const leaky = fakeSandbox((user) => (user === 'anon' ? `id\ttitle\n1\t${users.canary}-notes-title` : 'id\ttitle'));
     const outcome = await attack(context(leaky));
-    expect(outcome.evidence).toEqual({ actor: 'anon', action: 'read', table: 'notes', rows: 1, query: 'select * from public."notes";' });
+    expect(outcome.evidence).toEqual({ actor: 'anon', action: 'read', table: 'notes', rows: 1, query: 'select * from public."notes";', by: 'probe' });
   });
 
   it('keeps searching past a hit that was already open before the commit', async () => {
@@ -208,7 +211,7 @@ describe('ground truth', () => {
 });
 
 describe('the privacy judge', () => {
-  const read = { actor: 'anon' as const, action: 'read' as const, table: 'posts', rows: 1, query: 'select * from posts' };
+  const read = { actor: 'anon' as const, action: 'read' as const, table: 'posts', rows: 1, query: 'select * from posts', by: 'probe' as const };
 
   it('downgrades a read of clearly public data, never a write', async () => {
     answers.push(JSON.stringify({ clearlyPublic: true, reason: 'Published blog posts, meant for everyone.' }));
@@ -223,7 +226,7 @@ describe('the privacy judge', () => {
 
 describe('the words on a proven card', () => {
   const proven: ProofResult = {
-    status: 'proven', table: 'notes', role: 'anon', action: 'read', rows: 2, query: 'select * from public."notes";', before: 'blocked',
+    status: 'proven', table: 'notes', role: 'anon', action: 'read', rows: 2, query: 'select * from public."notes";', foundBy: 'probe', before: 'blocked',
     reason: null, judge: { clearlyPublic: false, reason: 'x' }, summary: 's', log: [],
     timings: { setupMs: 0, attackMs: 0, judgeMs: 0, beforeMs: 0, totalMs: 0 },
     usage: { attacker: { calls: 0, input: 0, output: 0, reasoning: 0 }, judge: { calls: 0, input: 0, output: 0, reasoning: 0 } },
@@ -293,6 +296,6 @@ describe('POST /prove', () => {
   });
 
   it('knows every fixture', () => {
-    expect(Object.keys(PROVER_COMMITS)).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(Object.keys(PROVER_COMMITS)).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n']);
   });
 });

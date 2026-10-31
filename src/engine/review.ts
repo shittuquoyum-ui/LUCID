@@ -26,7 +26,7 @@ import { callModel, type Effort, type Provider, type Usage } from './model';
 import { prompt } from './prompts';
 import type { CheckedLesson, CheckedRisk } from './quoteCheck';
 import type { SeverityCall } from './severity';
-import { recreatedNote, type RiskCategory } from './signals';
+import { recreatedNote, tightenedNote, type RiskCategory } from './signals';
 import type { Attempt } from './steps';
 
 export const ReviewSchema = z.object({
@@ -104,6 +104,7 @@ const reviewInput = (files: DiffFile[], title: string | null, cardLabel: string,
   [
     title ? `Change title: ${title}` : null,
     recreatedNote(files),
+    tightenedNote(files),
     'THE CHANGE AS BEFORE AND AFTER',
     renderVersions(files),
     '',

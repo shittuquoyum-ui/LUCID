@@ -6,6 +6,9 @@
 export const MISSING_KEYS = 'Lucid needs API keys to explain your changes.';
 export const NO_LESSON = "Lucid couldn't write a lesson it could stand behind for this commit, so it skipped it.";
 
+/** The second toast. It never leaves out where the proof happened: nothing real was touched. */
+export const provenToast = (title: string): string => `⚠️ Lucid proved it in a sandbox with fake users: ${title}`;
+
 export interface Problem {
   message: string;
   /** Offer the "Set keys" button with the message. */

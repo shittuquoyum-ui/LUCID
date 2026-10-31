@@ -17,7 +17,7 @@ import reviewLessonPrompt from '../../src/prompts/reviewLesson.md';
 import reviewWarningPrompt from '../../src/prompts/reviewWarning.md';
 import writeLessonPrompt from '../../src/prompts/writeLesson.md';
 import writeWarningPrompt from '../../src/prompts/writeWarning.md';
-import { applyProof, toCard, type Card, type WarningCard } from '../../src/engine/card';
+import { toCard, type Card, type WarningCard } from '../../src/engine/card';
 import { parseDiff } from '../../src/engine/diff';
 import { runLucid, type CardKind, type LucidStep } from '../../src/engine/lucid';
 import { useApiKeys } from '../../src/engine/model';
@@ -25,8 +25,8 @@ import { providePrompts } from '../../src/engine/prompts';
 import { reportLines } from '../../src/terminal';
 import { renderCardHtml } from '../../src/ui/cardHtml';
 import { commitDiff, commitSubject, fileAt, filesAt, headCommit, lastReflogSubject, parentsOf, type CommitRef, type GitApi, type GitExtension, type GitRepository } from './git';
-import { askProve, proveRequest, type CommitFiles } from './prove';
-import { MISSING_KEYS, NO_LESSON, plainReason } from './messages';
+import { askProve, cardAfterProof, proveRequest, wantsProof, type CommitFiles } from './prove';
+import { MISSING_KEYS, NO_LESSON, plainReason, provenToast } from './messages';
 import { askServer, DEFAULT_SERVER_URL } from './server';
 import { classifyHeadChange, RunQueue } from './trigger';
 
@@ -155,16 +155,12 @@ export function activate(context: vscode.ExtensionContext): void {
     const running = askProve(serverUrl, token, request);
     vscode.window.setStatusBarMessage('$(beaker~spin) Lucid is testing this warning in a sandbox with fake users…', running);
     const answer = await running;
-    if (answer.kind === 'problem') {
-      console.log(`[Lucid] ${commit.sha.slice(0, 7)} prover: ${answer.message}`);
-      return replaceCard(card, { ...card, proofNote: answer.message });
-    }
-    const r = answer.result;
-    console.log(`[Lucid] ${commit.sha.slice(0, 7)} prover: ${r.status}${r.reason ? ` (${r.reason})` : ''}. ${r.summary}`);
-    const updated = applyProof(card, r);
+    if (answer.kind === 'problem') console.log(`[Lucid] ${commit.sha.slice(0, 7)} prover: ${answer.message}`);
+    else console.log(`[Lucid] ${commit.sha.slice(0, 7)} prover: ${answer.result.status}${answer.result.reason ? ` (${answer.result.reason})` : ''}. ${answer.result.summary}`);
+    const updated = cardAfterProof(card, answer);
     replaceCard(card, updated);
     if (updated.evidence === 'proven') {
-      void vscode.window.showWarningMessage(`⚠️ Lucid proved it: ${updated.title}`, 'Show me').then((choice) => {
+      void vscode.window.showWarningMessage(provenToast(updated.title), 'Show me').then((choice) => {
         if (choice === 'Show me') showCard(updated);
       });
     }
@@ -246,7 +242,7 @@ export function activate(context: vscode.ExtensionContext): void {
         const answer = await askServer(serverUrl, token, diffText, title, fetch, wantedKinds());
         if (answer.kind === 'done') {
           present(commit.sha, answer.outcome, answer.card, answer.report);
-          if (answer.card?.kind === 'risk' && answer.card.category === 'data-exposure' && settings().get<boolean>('prove', true)) {
+          if (wantsProof(answer.card) && settings().get<boolean>('prove', true)) {
             void proveInBackground(commit, diffText, answer.card, token, serverUrl);
           }
           return;

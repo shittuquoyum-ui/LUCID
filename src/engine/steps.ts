@@ -29,7 +29,7 @@ import { checkEvidence, checkLesson, checkQuotes, NO_CHANGE_QUOTED, type Checked
 import { reviewLesson, reviewWarning, type ReviewCheck, type WarningReviewCheck, type WarningRisk } from './review';
 import { finalSeverity, proposeSeverity, type SeverityCall } from './severity';
 import { ConceptPickSchema, LessonSchema, RiskSchema, type ConceptPick, type Risk, type Severity } from './schemas';
-import { findSignals, recreatedNote, signalsForPrompt, type Signal } from './signals';
+import { findSignals, recreatedNote, signalsForPrompt, tightenedNote, tightenedRules, type Signal } from './signals';
 
 
 export interface Attempt {
@@ -60,7 +60,7 @@ const retryNote = (problems: string[]): string =>
   `\n\nYOUR PREVIOUS ANSWER WAS REJECTED. Fix these problems and return the complete JSON again:\n${problems.map((p) => `- ${p}`).join('\n')}`;
 
 const diffBlock = (files: DiffFile[], title: string | null): string =>
-  [title ? `Change title: ${title}` : null, recreatedNote(files), 'DIFF', LISTING_LEGEND, '', renderListing(files)].filter((x) => x !== null).join('\n');
+  [title ? `Change title: ${title}` : null, recreatedNote(files), tightenedNote(files), 'DIFF', LISTING_LEGEND, '', renderListing(files)].filter((x) => x !== null).join('\n');
 
 // ---------------------------------------------------------------------------
 
@@ -159,6 +159,7 @@ export const writeLesson = async (
   ].join('\n');
 
   const changedLines = files.flatMap((f) => f.lines.filter((l) => isChange(l) && !l.redacted).map((l) => l.text));
+  const narrowsRule = tightenedRules(files).length > 0;
   const attempts: Attempt[] = [];
   let problems: string[] = [];
   let lastCheck: LessonCheck | null = null;
@@ -207,12 +208,15 @@ export const writeLesson = async (
     const quotesOk = check.verified.some((q) => q.changes);
     if (check.verified.length === 0 && quoteNotes.length === 0) quoteNotes.push('no quote could be verified against the diff');
     if (check.verified.length > 0 && !quotesOk) quoteNotes.push(NO_CHANGE_QUOTED);
+    // A rule narrowed in plain sight: the card shows what it was too. Worth a retry, never worth losing the lesson.
+    const showsBefore = !narrowsRule || check.verified.some((q) => q.role === 'removed');
+    if (!showsBefore) quoteNotes.push('the change shows the old rule too: quote its removed line as the second quote, with role "removed", and say what it allowed before');
     const notes = [...quoteNotes, ...plain.problems];
     attempts.push({ step: 'write', provider, problems: notes });
 
     // Fact-check only a lesson that could be shown: true quotes, and plain
     // wording (or no retry left to fix the wording).
-    if (!quotesOk || (!plain.passed && !lastRound)) {
+    if (!quotesOk || ((!plain.passed || !showsBefore) && !lastRound)) {
       problems = notes;
       continue;
     }

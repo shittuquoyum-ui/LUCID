@@ -26,10 +26,10 @@ The **👁 Lucid** button in the status bar reopens your last card. While Lucid 
 
 ## When Lucid proves it
 
-For a warning about your database rules (row level security turned off, a rule that lets everyone read, an owner check taken out), Lucid goes one step further while you keep working. It builds your database setup in a disposable sandbox, adds two fake users, Alice and Bob, and tries to reach Alice's rows as a signed-out visitor and as Bob.
+For a warning about your database rules (row level security turned off, a rule that lets everyone read, an owner check taken out, a view or function that goes around the rules), Lucid goes one step further while you keep working. It builds your database setup in a disposable sandbox, adds two fake users, Alice and Bob, and tries to reach Alice's rows as a signed-out visitor and as Bob. First with plain attempts, then with an AI attacker that reads your rules and looks for a way around them.
 
-- **If it gets through**, the card switches from **Warning** to **Proven** and a second message appears: **⚠️ Lucid proved it: …**. The card shows what happened, for example *"a signed-out visitor read 1 of Alice's private rows from `notes`. Before your commit: blocked. After: leaked."*, and the exact query.
-- **If it doesn't**, the card stays a warning, with one quiet line: *Lucid couldn't reproduce this in its sandbox. That doesn't mean it's safe.*
+- **If it gets through**, the card switches from **Warning** to **Proven** and a second message appears: **⚠️ Lucid proved it in a sandbox with fake users: …**. The card shows what happened, for example *"a signed-out visitor read 1 of Alice's private rows from `notes`. Before your commit: blocked. After: leaked."*, and the exact query.
+- **If it doesn't, or the sandbox has a problem**, the card stays a warning, with one quiet line: *Lucid couldn't reproduce this in its sandbox. That doesn't mean it's safe.*
 
 "Proven" means: reproduced unauthorized access against fake users, using your database rules, in a disposable sandbox. It never means real people's data was exposed. Up to 5 sandbox tests a day.
 

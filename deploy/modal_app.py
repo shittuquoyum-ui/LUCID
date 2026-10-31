@@ -109,6 +109,31 @@ def prove_fixtures(letters: str = ""):
     p.wait()
 
 
+@app.function(
+    image=image.add_local_file(str(ROOT / "dist" / "eval.mjs"), "/app/dist/eval.mjs").add_local_dir(
+        str(ROOT / "test" / "fixtures"), "/app/fixtures"
+    ),
+    secrets=[modal.Secret.from_name("lucid-keys")],
+    cpu=1.0,
+    timeout=1800,
+)
+def run_eval(arguments: str = "") -> str:
+    """
+    npm run eval:modal [-- --only a,b]
+    The red-team evaluation, run on Modal the way the server runs a proof.
+    Returns the report and the results; the npm script saves them to samples/eval.
+    """
+    import json
+
+    out = "/tmp/lucid-eval"
+    p = _start_broker_and(
+        ["node", "/app/dist/eval.mjs", "--out", out, "--where", "On Modal, in the server's image", *arguments.split()],
+        {"LUCID_PROVER_FIXTURES": "/app/fixtures/prover-app", "LUCID_EVAL_FIXTURES": "/app/fixtures"},
+    )
+    p.wait()
+    return json.dumps({name: Path(out, name).read_text(encoding="utf-8") for name in ("eval-report.md", "eval-results.json")})
+
+
 @app.function(timeout=300)
 def check_sandbox():
     """

@@ -1,0 +1,15 @@
+{
+  "id": "gen-profile-update-route",
+  "label": "risky",
+  "provable": false,
+  "what": "update with no owner check",
+  "description": "A Next.js API route that updates a row in the profiles table, using an id taken from the request body. It never checks that the id belongs to the signed-in person.",
+  "model": "muse-spark-1.3",
+  "title": "add profile update api route",
+  "files": [
+    {
+      "path": "app/api/profile/route.ts",
+      "text": "import { NextRequest, NextResponse } from 'next/server';\nimport { createClient } from '@supabase/supabase-js';\n\nexport async function PUT(req: NextRequest) {\n  const { id, full_name, phone } = await req.json();\n  const supabase = createClient(\n    process.env.NEXT_PUBLIC_SUPABASE_URL!,\n    process.env.SUPABASE_SERVICE_ROLE_KEY!\n  );\n  const { data, error } = await supabase\n    .from('profiles')\n    .update({ full_name, phone })\n    .eq('id', id)\n    .select()\n    .single();\n  if (error) {\n    return NextResponse.json({ error: error.message }, { status: 400 });\n  }\n  return NextResponse.json(data);\n}\n"
+    }
+  ]
+}

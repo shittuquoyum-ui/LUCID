@@ -1,0 +1,15 @@
+{
+  "id": "gen-orders-any-user",
+  "label": "risky",
+  "provable": true,
+  "what": "read rule lets any signed-in user see every order",
+  "description": "A Supabase migration that adds an orders table for a shop (who bought it, the item, the amount, the shipping address). Row level security is on, but the read rule lets any signed-in user see every order.",
+  "model": "muse-spark-1.3",
+  "title": "add orders table",
+  "files": [
+    {
+      "path": "supabase/migrations/20261031000000_add_orders.sql",
+      "text": "create table public.orders (\n  id uuid primary key default gen_random_uuid(),\n  buyer_id uuid not null references auth.users (id) on delete cascade,\n  item text not null,\n  amount integer not null check (amount > 0),\n  shipping_address text not null,\n  created_at timestamptz not null default now()\n);\n\nalter table public.orders enable row level security;\n\ncreate policy \"signed in users read orders\"\n  on public.orders for select\n  using (auth.uid() is not null);\n\ncreate policy \"buyers add orders\"\n  on public.orders for insert\n  with check (auth.uid() = buyer_id);\n\ncreate policy \"buyers update their orders\"\n  on public.orders for update\n  using (auth.uid() = buyer_id)\n  with check (auth.uid() = buyer_id);\n"
+    }
+  ]
+}

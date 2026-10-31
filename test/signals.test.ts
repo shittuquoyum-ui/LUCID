@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseDiff } from '../src/engine/diff';
 import { filterDiff } from '../src/engine/filter';
-import { findSignals, recreatedPolicies, runsInBrowser, type SignalId } from '../src/engine/signals';
+import { findSignals, recreatedPolicies, runsInBrowser, tightenedNote, tightenedRules, type SignalId } from '../src/engine/signals';
+import { proverCommit, type CommitLetter } from './proverFixtures';
 
 const dir = join(import.meta.dirname, 'fixtures', 'risky-commits');
 const signalsIn = (diff: string) => findSignals(filterDiff(parseDiff(diff)).files);
@@ -64,6 +65,89 @@ describe('risk signals on the fixture commits', () => {
   it('puts data exposure first', () => {
     const ids = signalsIn(fixture('risky-08-stripe-webhook-unverified.diff')).map((s) => s.category);
     expect(ids).toEqual([...ids].sort((a, b) => ['data-exposure', 'secrets', 'auth', 'ownership', 'payments', 'other'].indexOf(a) - ['data-exposure', 'secrets', 'auth', 'ownership', 'payments', 'other'].indexOf(b)));
+  });
+});
+
+describe('risk signals on the leaks the standard probes cannot reach', () => {
+  const idsIn = (letter: CommitLetter) => signalsIn(proverCommit(letter).diff).map((s) => s.id);
+
+  it('fires on each hard fixture', () => {
+    expect(idsIn('f')).toContain('policy-allows-all');
+    expect(idsIn('g')).toContain('definer-without-caller-check');
+    expect(idsIn('h')).toContain('insert-without-owner-check');
+    expect(idsIn('i')).toContain('view-skips-rules');
+  });
+
+  it('stays quiet on their safe look-alikes', () => {
+    for (const letter of ['j', 'k', 'l'] as const) expect(idsIn(letter), letter).toEqual([]);
+  });
+
+  it('leaves a view of public rows, or a rule replaced under a new name, to the picker: hints, not verdicts', () => {
+    expect(idsIn('m')).toEqual(['view-skips-rules']);
+    expect(idsIn('n')).toEqual(['policy-dropped']);
+  });
+
+  it('does not take a trigger function for a function anyone can call', () => {
+    expect(idsIn('l')).not.toContain('definer-without-caller-check');
+  });
+
+  it('points at the statement, not a comment above it', () => {
+    expect(signalsIn(proverCommit('i').diff)[0]).toMatchObject({ line: 2, code: 'create view public.notes_feed as' });
+  });
+
+  const policy = (lines: string[]) => signalsIn(newFile('supabase/migrations/1.sql', lines)).map((s) => s.id);
+
+  it('accepts the owner check in the forms people write it', () => {
+    expect(policy(['create policy "a" on public.notes for insert with check (auth.uid() = owner_id);'])).toEqual([]);
+    expect(policy(['create policy "a" on public.notes for insert with check (user_id = auth.uid());'])).toEqual([]);
+    expect(policy(['create policy "a" on public.notes for insert with check (owner_id = (select auth.uid()));'])).toEqual([]);
+    expect(policy(['create policy "a" on public.notes for insert with check ((auth.uid()) = created_by);'])).toEqual([]);
+  });
+
+  it('accepts `auth.uid() = id` where the row is the person, and nowhere else', () => {
+    expect(policy(['create policy "a" on public.profiles for insert with check (auth.uid() = id);'])).toEqual([]);
+    expect(policy(['create policy "a" on public.notes for insert with check (auth.uid() = id);'])).toEqual(['insert-without-owner-check']);
+    expect(policy(['create policy "a" on public.notes for insert with check (auth.role() = \'authenticated\');'])).toEqual(['insert-without-owner-check']);
+  });
+});
+
+describe('a rule the change narrows, with both versions in the diff', () => {
+  const inPlace = edit('supabase/schema.sql', [
+    [' ', 'create policy "read items"'],
+    [' ', '  on public.items for select'],
+    ['-', '  using (true);'],
+    ['+', '  using (auth.uid() = owner_id);'],
+  ]);
+  const files = (diff: string) => filterDiff(parseDiff(diff)).files;
+
+  it('finds it when the old line is removed and the new one added, on the same table', () => {
+    expect(tightenedRules(files(inPlace))).toEqual([{ table: 'items', before: 'using (true);', after: 'using (auth.uid() = owner_id);' }]);
+    expect(tightenedNote(files(inPlace))).toContain('RULE TIGHTENED: on items, the removed line `using (true);` let every row through');
+  });
+
+  it('claims nothing when the old rule is not in the diff, like a new migration that drops it by name', () => {
+    const newMigration = newFile('supabase/migrations/2.sql', ['drop policy if exists select_all_policy on public.private_items;', 'create policy "owners read their private items"', '  on public.private_items for select', '  using (auth.uid() = owner_id);']);
+    expect(tightenedRules(files(newMigration))).toEqual([]);
+    expect(tightenedNote(files(newMigration))).toBeNull();
+  });
+
+  it('claims nothing across two different tables', () => {
+    const two = edit('supabase/schema.sql', [
+      [' ', 'create policy "read items" on public.items for select'],
+      ['-', '  using (true);'],
+      [' ', 'create policy "read notes" on public.notes for select'],
+      ['+', '  using (auth.uid() = owner_id);'],
+    ]);
+    expect(tightenedRules(files(two))).toEqual([]);
+  });
+
+  it('claims nothing when a rule is opened, the other way round', () => {
+    const opened = edit('supabase/schema.sql', [
+      [' ', 'create policy "read items" on public.items for select'],
+      ['-', '  using (auth.uid() = owner_id);'],
+      ['+', '  using (true);'],
+    ]);
+    expect(tightenedRules(files(opened))).toEqual([]);
   });
 });
 

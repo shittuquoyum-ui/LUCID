@@ -9,6 +9,8 @@
     "preview": "tsx --env-file-if-exists=.env src/preview.ts",
     "test": "vitest run",
     "prove:fixtures": "tsx --env-file-if-exists=.env scripts/prove-fixtures.ts",
+    "eval": "tsx --env-file-if-exists=.env scripts/eval.ts",
+    "eval:modal": "node scripts/eval-modal.mjs",
     "typecheck": "tsc --noEmit",
     "server": "tsx --env-file-if-exists=.env src/server/main.ts",
     "build:server": "node scripts/build-server.mjs",

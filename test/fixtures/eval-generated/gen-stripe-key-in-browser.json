@@ -1,0 +1,15 @@
+{
+  "id": "gen-stripe-key-in-browser",
+  "label": "risky",
+  "provable": false,
+  "what": "secret key in browser code",
+  "description": "A React client component with a checkout button. It creates a Stripe client right in the component, with the secret key typed straight into the file.",
+  "model": "muse-spark-1.3",
+  "title": "add checkout button",
+  "files": [
+    {
+      "path": "components/CheckoutButton.tsx",
+      "text": "\"use client\";\nimport { useState } from \"react\";\nimport Stripe from \"stripe\";\n\nconst stripe = new Stripe(\"sk_live_fakekeyfortests\");\n\nexport default function CheckoutButton({ priceId }: { priceId: string }) {\n  const [loading, setLoading] = useState(false);\n\n  async function handleCheckout() {\n    setLoading(true);\n    const session = await stripe.checkout.sessions.create({\n      mode: \"payment\",\n      success_url: `${window.location.origin}/success`,\n      cancel_url: `${window.location.origin}/cancel`,\n      line_items: [{ price: priceId, quantity: 1 }],\n    });\n    window.location.href = session.url as string;\n  }\n\n  return (\n    <button onClick={handleCheckout} disabled={loading}>\n      {loading ? \"Loading...\" : \"Checkout\"}\n    </button>\n  );\n}"
+    }
+  ]
+}

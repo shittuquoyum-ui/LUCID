@@ -6,28 +6,28 @@
  *   1. standard probes, written by code: read every target table as anon
  *      and as Bob, then try to change and delete Alice's rows;
  *   2. if none of those got through, the attacker model (Muse Spark 1.3)
- *      looks at the tables and policies and tries its own queries, within
- *      12 tool calls and about 60 seconds.
+ *      looks at the tables, policies, views and functions and tries its own
+ *      queries, within 12 tool calls and about 60 seconds.
  *
  * Ground truth decides, never the model's word: a read counts only when
  * Alice's canary came back in an answer; a write counts only when Alice's
- * rows (fingerprinted by the superuser) changed or vanished after a query
- * by someone who is not Alice.
+ * rows (fingerprinted by the superuser) changed, vanished or gained a row
+ * after a query by someone who is not Alice.
  */
 import { parseWith } from '../engine/json';
 import { callModel, type Provider, type Usage } from '../engine/model';
 import { prompt } from '../engine/prompts';
 import { z } from 'zod';
 import type { Sandbox } from './sandbox';
-import { ident, parseSnapshot, snapshotSql, type FakeUsers, type SeedTarget, type Snapshot, type TableInfo } from './schema';
+import { ident, parseSnapshot, snapshotSql, type FakeUsers, type FunctionInfo, type SeedTarget, type Snapshot, type TableInfo, type ViewInfo } from './schema';
 import { checkAttackSql } from './sqlSafety';
 
 export type Actor = 'anon' | 'bob';
-export type Action = 'read' | 'update' | 'delete';
+export type Action = 'read' | 'update' | 'delete' | 'insert';
 
 export interface ToolCall {
   n: number;
-  tool: 'list_tables' | 'describe_table' | 'list_policies' | 'run_as';
+  tool: 'list_tables' | 'describe_table' | 'list_policies' | 'list_views' | 'list_functions' | 'run_as';
   /** Who wrote the call: the standard probes or the attacker model. */
   by: 'probe' | 'attacker';
   actor?: Actor;
@@ -46,6 +46,10 @@ export interface Evidence {
   table: string;
   rows: number;
   query: string;
+  /** Who wrote the query that worked. */
+  by: 'probe' | 'attacker';
+  /** A read that came back although this person's plain read of the table did not: the table's own rule hides the row from them. */
+  hiddenByTableRule?: boolean;
 }
 
 export interface AttackContext {
@@ -53,6 +57,8 @@ export interface AttackContext {
   db: string;
   users: FakeUsers;
   tables: TableInfo[];
+  views?: ViewInfo[];
+  functions?: FunctionInfo[];
   /** Tables with an owner column, the commit's first. */
   targets: SeedTarget[];
   /** Stop starting new work after this time (ms since epoch). */
@@ -63,6 +69,8 @@ export interface AttackContext {
   maxAgentCalls?: number;
   /** The tables the commit touched; probed first, with every probe, before any other table. */
   touched?: string[];
+  /** The views and functions the commit touched; the attacker model is told. */
+  touchedRoutes?: string[];
   /**
    * Called for every hit the ground truth confirms. 'keep' ends the attack
    * with it; 'skip' (for example: already open before the commit, or data
@@ -134,11 +142,12 @@ const takeSnapshot = async (ctx: AttackContext): Promise<Snapshot> => {
 };
 
 /** Which of Alice's tables changed between two fingerprints, and how. */
-export const changesBetween = (before: Snapshot, after: Snapshot): { table: string; action: 'update' | 'delete'; rows: number }[] =>
+export const changesBetween = (before: Snapshot, after: Snapshot): { table: string; action: 'update' | 'delete' | 'insert'; rows: number }[] =>
   Object.entries(before)
     .filter(([t, b]) => after[t] && (after[t]!.rows !== b.rows || after[t]!.hash !== b.hash))
     .map(([t, b]) => {
       const a = after[t]!;
+      if (a.rows > b.rows) return { table: t, action: 'insert' as const, rows: a.rows - b.rows };
       return a.rows < b.rows ? { table: t, action: 'delete' as const, rows: b.rows - a.rows } : { table: t, action: 'update' as const, rows: Math.max(1, b.rows) };
     });
 
@@ -178,7 +187,7 @@ export const attack = async (ctx: AttackContext): Promise<AttackOutcome> => {
         record({ tool: 'run_as', by: 'probe', actor, table: a.table, sql: a.sql, output: a.output, ms: Math.round(batch.ms / batch.answers.length), canaryRows: canaryRowsIn(a.output, u.canary) }),
       );
       for (const hit of calls.filter((c) => c.canaryRows > 0)) {
-        const evidence: Evidence = { actor, action: 'read', table: hit.table!, rows: hit.canaryRows, query: hit.sql! };
+        const evidence: Evidence = { actor, action: 'read', table: hit.table!, rows: hit.canaryRows, query: hit.sql!, by: 'probe' };
         if ((await consider(evidence)) === 'keep') return done(evidence);
       }
     }
@@ -203,7 +212,9 @@ export const attack = async (ctx: AttackContext): Promise<AttackOutcome> => {
         const changed = batch.tampered ? [] : changesBetween(snapshot, next);
         snapshot = next;
         for (const hit of changed) {
-          const evidence: Evidence = { actor, action: hit.action, table: hit.table, rows: hit.rows, query: queries.find((qy) => qy.table === hit.table)!.sql };
+          // A trigger or a cascade can change another of Alice's tables than the one queried.
+          const query = (queries.find((qy) => qy.table === hit.table) ?? queries[0]!).sql;
+          const evidence: Evidence = { actor, action: hit.action, table: hit.table, rows: hit.rows, query, by: 'probe' };
           if ((await consider(evidence)) === 'keep') return done(evidence);
         }
       }
@@ -211,14 +222,15 @@ export const attack = async (ctx: AttackContext): Promise<AttackOutcome> => {
   }
 
   // 2. The attacker model.
-  const evidence = await runAgent(ctx, record, consider, () => snapshot, (s) => (snapshot = s));
+  const plainReadOpen = (actor: Actor, table: string) => log.some((c) => c.by === 'probe' && c.actor === actor && c.table === table && c.canaryRows > 0);
+  const evidence = await runAgent(ctx, record, consider, () => snapshot, (s) => (snapshot = s), plainReadOpen);
   return done(evidence);
 };
 
 // --- the attacker model -----------------------------------------------------------
 
 const ActionSchema = z.object({
-  tool: z.enum(['list_tables', 'describe_table', 'list_policies', 'run_as', 'done']),
+  tool: z.enum(['list_tables', 'describe_table', 'list_policies', 'list_views', 'list_functions', 'run_as', 'done']),
   args: z.object({ table: z.string().optional(), role: z.enum(['anon', 'bob']).optional(), sql: z.string().max(4000).optional() }).default({}),
   why: z.string().max(400).optional(),
 });
@@ -231,8 +243,24 @@ const tableSummary = (ctx: AttackContext) =>
     })
     .join('\n');
 
+const INFO_KEEP = 6000;
+const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim();
+const who = (x: { anon: boolean; authenticated: boolean }) => [x.anon ? 'anon' : null, x.authenticated ? 'bob' : null].filter(Boolean).join(' and ') || 'nobody here';
+
+const viewList = (ctx: AttackContext): string =>
+  ctx.views?.length
+    ? ctx.views.map((v) => `- ${v.name}: security_invoker ${v.securityInvoker ? 'on' : 'off'}; ${who(v)} may read it\n  ${oneLine(v.definition)}`).join('\n')
+    : 'no views in public';
+
+const functionList = (ctx: AttackContext): string =>
+  ctx.functions?.length
+    ? ctx.functions.map((f) => `- ${f.name}(${f.args}) returns ${f.returns}: ${f.securityDefiner ? 'security definer' : 'security invoker'}; ${who(f)} may call it\n  ${oneLine(f.source)}`).join('\n')
+    : 'no functions anyone can call in public';
+
 const answerInfo = (ctx: AttackContext, tool: string, table?: string): string => {
   if (tool === 'list_tables') return tableSummary(ctx);
+  if (tool === 'list_views') return viewList(ctx).slice(0, INFO_KEEP);
+  if (tool === 'list_functions') return functionList(ctx).slice(0, INFO_KEEP);
   const t = ctx.tables.find((x) => x.name === table?.replace(/^public\./, '').replace(/"/g, ''));
   if (!t) return `no table named ${table ?? '(none)'} in public`;
   if (tool === 'describe_table') {
@@ -243,14 +271,13 @@ const answerInfo = (ctx: AttackContext, tool: string, table?: string): string =>
     : `no policies${t.rls ? ' (row level security is on, so nothing is allowed)' : ' (row level security is off)'}`;
 };
 
-const WRITES = /\b(insert|update|delete)\b/i;
-
 const runAgent = async (
   ctx: AttackContext,
   record: (call: Omit<ToolCall, 'n'>) => ToolCall,
   consider: (evidence: Evidence) => Promise<'keep' | 'skip'>,
   getSnapshot: () => Snapshot,
   setSnapshot: (s: Snapshot) => void,
+  plainReadOpen: (actor: Actor, table: string) => boolean,
 ): Promise<Evidence | null> => {
   const max = ctx.maxAgentCalls ?? 12;
   const agentEnd = Math.min(ctx.deadline, Date.now() + 60_000);
@@ -258,8 +285,10 @@ const runAgent = async (
   const brief = [
     `FAKE USERS: alice = ${ctx.users.alice}, bob = ${ctx.users.bob} (bob@example.test).`,
     `TARGET TABLES (the commit touched these): ${ctx.touched?.length ? ctx.touched.join(', ') : ctx.targets.map((t) => t.table).join(', ')}`,
+    ...(ctx.touchedRoutes?.length ? [`VIEWS AND FUNCTIONS THE COMMIT TOUCHED: ${ctx.touchedRoutes.join(', ')}`] : []),
     `TABLES:\n${tableSummary(ctx)}`,
-    "The standard probes already tried a plain read, change and delete of Alice's rows in every table as anon and as bob. Look for what they could miss.",
+    `There are ${ctx.views?.length ?? 0} views and ${ctx.functions?.length ?? 0} functions in public.`,
+    "The standard probes already tried a plain read, change and delete of Alice's rows as anon and as bob, in every table with an owner column. Look for what they could miss.",
   ].join('\n\n');
   /** A hit the prover does not keep: say so, and keep looking. */
   const offer = async (evidence: Evidence): Promise<Evidence | null> => {
@@ -270,11 +299,18 @@ const runAgent = async (
   const transcript: string[] = [];
 
   for (let calls = 0; calls < max && Date.now() < agentEnd; calls += 1) {
-    const text = await callModel(
-      ctx.attacker,
-      { system, user: `${brief}\n\nSO FAR:\n${transcript.join('\n\n') || '(nothing yet)'}\n\nYour next action, as JSON:`, effort: 'low', maxTokens: 4000, usage: ctx.usage },
-      () => JSON.stringify({ tool: 'done', args: {}, why: 'fake attacker' }),
-    );
+    let text: string;
+    try {
+      text = await callModel(
+        ctx.attacker,
+        { system, user: `${brief}\n\nSO FAR:\n${transcript.join('\n\n') || '(nothing yet)'}\n\nYour next action, as JSON:`, effort: 'low', maxTokens: 6000, usage: ctx.usage },
+        () => JSON.stringify({ tool: 'done', args: {}, why: 'fake attacker' }),
+      );
+    } catch {
+      // One bad answer costs one call, not the proof. The probes' work is not lost either.
+      transcript.push('(your last answer never arrived. Answer with one short JSON action.)');
+      continue;
+    }
     const parsed = parseWith(ActionSchema, text);
     if (!parsed.ok) {
       transcript.push(`(your last answer was not valid JSON: ${parsed.problems.join('; ')})`);
@@ -304,15 +340,16 @@ const runAgent = async (
     transcript.push(`run_as(${actor}): ${sql}\n${output.split(ctx.users.canary).join('<alice-data>').slice(0, 1500) || '(no rows)'}`);
     if (call.canaryRows > 0) {
       const table = tableOfCanary(output, ctx.users.canary, ctx.targets) ?? ctx.targets[0]!.table;
-      const kept = await offer({ actor, action: 'read', table, rows: call.canaryRows, query: sql });
+      const kept = await offer({ actor, action: 'read', table, rows: call.canaryRows, query: sql, by: 'attacker', hiddenByTableRule: !plainReadOpen(actor, table) });
       if (kept) return kept;
     }
-    if (WRITES.test(sql) && !r.tampered) {
+    // After every query, not only ones that read like writes: a function can write too.
+    if (!r.tampered) {
       const next = await takeSnapshot(ctx);
       const changed = changesBetween(getSnapshot(), next);
       setSnapshot(next);
       for (const hit of changed) {
-        const kept = await offer({ actor, action: hit.action, table: hit.table, rows: hit.rows, query: sql });
+        const kept = await offer({ actor, action: hit.action, table: hit.table, rows: hit.rows, query: sql, by: 'attacker' });
         if (kept) return kept;
       }
     }

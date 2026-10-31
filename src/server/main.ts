@@ -22,9 +22,16 @@ export const PER_USER_DAILY = 20;
 export const PROOFS_PER_USER_DAILY = 5;
 
 const number = (v: string | undefined, fallback: number): number => {
-  const n = Number(v);
+  const n = v?.trim() ? Number(v) : NaN;
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 };
+
+/** The prover's switch and limits. The switch is read on every request; the cap when the server starts. */
+export const proveDepsFromEnv = (env: Record<string, string | undefined>, runner: ProveDeps['runProof']): ProveDeps => ({
+  enabled: () => env.LUCID_PROVE_ENABLED?.trim().toLowerCase() !== 'false',
+  limits: new DailyLimits({ perUser: PROOFS_PER_USER_DAILY, global: number(env.LUCID_PROVE_CAP, 100) }),
+  runProof: runner,
+});
 
 export const createLucidServer = (deps: ServerDeps, prove?: ProveDeps) =>
   createServer(async (req, res) => {
@@ -71,11 +78,7 @@ const main = () => {
     runLesson: ({ diffText, title, kinds }) =>
       runLucid({ diffText, title, kinds, source: null, providers: { pick: 'baseten', write: 'meta' } }),
   };
-  const prove: ProveDeps = {
-    enabled: () => process.env.LUCID_PROVE_ENABLED?.trim().toLowerCase() !== 'false',
-    limits: new DailyLimits({ perUser: PROOFS_PER_USER_DAILY, global: number(process.env.LUCID_PROVE_CAP, 100) }),
-    runProof: (input) => runProof(input, { attacker: 'meta', judge: 'baseten' }),
-  };
+  const prove = proveDepsFromEnv(process.env, (input) => runProof(input, { attacker: 'meta', judge: 'baseten' }));
   const port = number(process.env.PORT, 8787);
   const host = process.env.HOST ?? '0.0.0.0';
   createLucidServer(deps, prove).listen(port, host, () => {

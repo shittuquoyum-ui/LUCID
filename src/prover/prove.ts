@@ -29,9 +29,9 @@ import { modalSandbox, type Sandbox } from './sandbox';
 import {
   INTROSPECT_SQL,
   makeFakeUsers,
+  parseDatabase,
   parseSeedCheck,
   parseSnapshot,
-  parseTables,
   seedCheckSql,
   seedSql,
   seedTargets,
@@ -60,7 +60,14 @@ export interface ProveOptions {
   /** The whole proof stops starting new work after this long. */
   budgetMs?: number;
   users?: FakeUsers;
+  /** Most tool calls for the attacker model; 0 runs the standard probes alone. */
+  maxAgentCalls?: number;
+  /** Past this the proof ends with an error, whatever it is waiting on. */
+  hardLimitMs?: number;
 }
+
+/** A little over the sandbox's own 120-second ceiling. A stuck model call can otherwise wait for minutes. */
+const HARD_LIMIT_MS = 125_000;
 
 const joined = (files: SetupFile[]) => orderSetupFiles(files).map((f) => `-- file: ${f.path}\n${f.text}`).join('\n\n');
 
@@ -69,7 +76,7 @@ const summarize = (log: ToolCall[], evidence: Evidence | null): string => {
   const attacker = log.filter((c) => c.by === 'attacker').length;
   const refused = log.filter((c) => c.refused).length;
   const who = evidence ? (evidence.actor === 'anon' ? 'a signed-out visitor' : 'Bob') : null;
-  const what = evidence ? { read: `read ${evidence.rows} of Alice's rows`, update: `changed Alice's rows`, delete: `deleted ${evidence.rows} of Alice's rows` }[evidence.action] : null;
+  const what = evidence ? { read: `read ${evidence.rows} of Alice's rows`, update: `changed Alice's rows`, delete: `deleted ${evidence.rows} of Alice's rows`, insert: `added ${evidence.rows} row${evidence.rows === 1 ? '' : 's'} in Alice's name` }[evidence.action] : null;
   return [
     `${probes} standard probe${probes === 1 ? '' : 's'}, ${attacker} attacker call${attacker === 1 ? '' : 's'}${refused ? ` (${refused} refused)` : ''}.`,
     evidence ? `${who} ${what} in ${evidence.table}.` : "No query reached Alice's rows.",
@@ -78,7 +85,38 @@ const summarize = (log: ToolCall[], evidence: Evidence | null): string => {
 
 const SeedSchema = z.object({ sql: z.string().min(1).max(20_000) });
 
-export const prove = async (input: ProveInput, options: ProveOptions = {}): Promise<ProofResult> => {
+/** A proof that always ends: at the hard limit the sandbox is stopped and the result is an error, so the card stays a warning. */
+export const prove = (input: ProveInput, options: ProveOptions = {}): Promise<ProofResult> => {
+  const started = Date.now();
+  const make = options.sandbox ?? modalSandbox;
+  let sandbox: Sandbox | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<ProofResult>((resolve) => {
+    timer = setTimeout(() => {
+      void sandbox?.stop().catch(() => undefined);
+      resolve({
+        status: 'error',
+        table: null,
+        role: null,
+        action: null,
+        rows: 0,
+        query: null,
+        foundBy: null,
+        before: 'not-run',
+        reason: 'the proof ran out of time',
+        judge: null,
+        summary: 'The proof ran out of time.',
+        log: [],
+        usage: { attacker: emptyUsage(), judge: emptyUsage() },
+        timings: { setupMs: 0, attackMs: 0, judgeMs: 0, beforeMs: 0, totalMs: Date.now() - started },
+      });
+    }, options.hardLimitMs ?? HARD_LIMIT_MS);
+  });
+  const run = runProof(input, { ...options, sandbox: () => (sandbox = make()) });
+  return Promise.race([run, timedOut]).finally(() => clearTimeout(timer));
+};
+
+const runProof = async (input: ProveInput, options: ProveOptions): Promise<ProofResult> => {
   const started = Date.now();
   const deadline = started + (options.budgetMs ?? 90_000);
   const attacker = options.attacker ?? 'meta';
@@ -94,6 +132,7 @@ export const prove = async (input: ProveInput, options: ProveOptions = {}): Prom
     action: null,
     rows: 0,
     query: null,
+    foundBy: null,
     before: 'not-run',
     reason: null,
     judge: null,
@@ -117,10 +156,10 @@ export const prove = async (input: ProveInput, options: ProveOptions = {}): Prom
     /** Build one database from setup SQL; its tables and their seeded state. */
     const build = async (db: 'before' | 'after', sql: string) => {
       const built = await sandbox.psql({ db, user: 'postgres', sql: `${DATABASE_SHIM}\n${sql}\n;\n${INTROSPECT_SQL}`, tuplesOnly: true, timeoutS: 60 });
-      const tables = parseTables(built.out);
-      const targets = seedTargets(tables);
-      const seeded = await sandbox.psql({ db, user: 'postgres', sql: `${USERS_SQL(users)}\n${seedSql(tables, users)}\n${seedCheckSql(targets, users)}`, tuplesOnly: true, timeoutS: 30 });
-      return { tables, targets, state: parseSeedCheck(seeded.out), errors: seeded.out };
+      const database = parseDatabase(built.out);
+      const targets = seedTargets(database.tables);
+      const seeded = await sandbox.psql({ db, user: 'postgres', sql: `${USERS_SQL(users)}\n${seedSql(database.tables, users)}\n${seedCheckSql(targets, users)}`, tuplesOnly: true, timeoutS: 30 });
+      return { ...database, targets, state: parseSeedCheck(seeded.out), errors: seeded.out };
     };
 
     const after = await build('after', afterSql.sql);
@@ -140,23 +179,33 @@ export const prove = async (input: ProveInput, options: ProveOptions = {}): Prom
     const targets = [...touched, ...ready.filter((t) => !touched.includes(t))];
 
     // Every hit the ground truth confirms is weighed here, in order:
-    //   1. a read of data clearly meant for everyone is no proof (the judge);
-    //   2. the same query on the database as it was before the commit: a hit
-    //      that worked before too is kept aside, and the attack looks on for
-    //      something this commit opened.
+    //   1. the same query on the database as it was before the commit, which
+    //      the judge is told: this commit's own new rule is no evidence that
+    //      rows it just opened were meant for everyone;
+    //   2. a read of data clearly meant for everyone is no proof (the judge);
+    //   3. a hit that worked before too is kept aside, and the attack looks on
+    //      for something this commit opened.
     let found: { evidence: Evidence; verdict: Verdict | null; before: BeforeState } | null = null;
     let openBefore: { evidence: Evidence; verdict: Verdict | null } | null = null;
     let publicData: { evidence: Evidence; verdict: Verdict | null; reason: string | null } | null = null;
     const verdicts = new Map<string, Verdict | null>();
     const consider = async (evidence: Evidence): Promise<'keep' | 'skip'> => {
+      const beforeStarted = Date.now();
+      const before = await replayBefore(evidence).catch((): BeforeState => 'error');
+      timings.beforeMs += Date.now() - beforeStarted;
       let verdict: Verdict | null = null;
       if (evidence.action === 'read') {
         const judgeStarted = Date.now();
-        if (!verdicts.has(evidence.table)) {
+        const key = `${evidence.table}\n${before}\n${evidence.hiddenByTableRule ? evidence.query : ''}`;
+        if (!verdicts.has(key)) {
           const table = after.tables.find((t) => t.name === evidence.table)!;
-          verdicts.set(evidence.table, await judgePrivacy(table, evidence, judgeProvider, usage.judge));
+          const through = [
+            ...after.views.filter((v) => evidence.query.includes(v.name)).map((v) => `view ${v.name} (security_invoker ${v.securityInvoker ? 'on' : 'off'}): ${v.definition}`),
+            ...after.functions.filter((f) => evidence.query.includes(f.name)).map((f) => `function ${f.name}(${f.args}): ${f.source}`),
+          ];
+          verdicts.set(key, await judgePrivacy(table, evidence, judgeProvider, usage.judge, { through, blockedBefore: before === 'blocked' }));
         }
-        verdict = verdicts.get(evidence.table) ?? null;
+        verdict = verdicts.get(key) ?? null;
         timings.judgeMs += Date.now() - judgeStarted;
         const kept = downgrade(evidence, verdict);
         if (!kept.keep) {
@@ -164,9 +213,6 @@ export const prove = async (input: ProveInput, options: ProveOptions = {}): Prom
           return 'skip';
         }
       }
-      const beforeStarted = Date.now();
-      const before = await replayBefore(evidence).catch((): BeforeState => 'error');
-      timings.beforeMs += Date.now() - beforeStarted;
       if (before === 'leaked') {
         openBefore ??= { evidence, verdict };
         return 'skip';
@@ -176,7 +222,22 @@ export const prove = async (input: ProveInput, options: ProveOptions = {}): Prom
     };
 
     const attackStarted = Date.now();
-    const outcome = await attack({ sandbox, db: 'after', users, tables: after.tables, targets, touched: input.touched.tables, deadline, attacker, usage: usage.attacker, consider });
+    const outcome = await attack({
+      sandbox,
+      db: 'after',
+      users,
+      tables: after.tables,
+      views: after.views,
+      functions: after.functions,
+      targets,
+      touched: input.touched.tables,
+      touchedRoutes: [...input.touched.views, ...input.touched.functions],
+      deadline,
+      attacker,
+      usage: usage.attacker,
+      maxAgentCalls: options.maxAgentCalls,
+      consider,
+    });
     log = outcome.log;
     timings.attackMs = Date.now() - attackStarted - timings.judgeMs - timings.beforeMs;
 
@@ -188,6 +249,7 @@ export const prove = async (input: ProveInput, options: ProveOptions = {}): Prom
         action: f.evidence.action,
         rows: f.evidence.rows,
         query: f.evidence.query,
+        foundBy: f.evidence.by,
         judge: f.verdict,
         before,
         summary: summarize(log, f.evidence),
@@ -200,7 +262,7 @@ export const prove = async (input: ProveInput, options: ProveOptions = {}): Prom
     const shown = publicData as { evidence: Evidence; verdict: Verdict | null; reason: string | null } | null;
     if (shown) {
       const e = shown.evidence;
-      return result({ status: 'not-reproduced', table: e.table, role: e.actor, action: e.action, rows: e.rows, query: e.query, judge: shown.verdict, reason: shown.reason, summary: summarize(log, null) });
+      return result({ status: 'not-reproduced', table: e.table, role: e.actor, action: e.action, rows: e.rows, query: e.query, foundBy: e.by, judge: shown.verdict, reason: shown.reason, summary: summarize(log, null) });
     }
     return result({ status: 'not-reproduced', reason: Date.now() > deadline ? "ran out of time before reaching Alice's rows" : "no query reached Alice's rows" });
   } catch (err) {
@@ -215,7 +277,7 @@ export const prove = async (input: ProveInput, options: ProveOptions = {}): Prom
     const sql = prepareSetupSql(joined(input.before));
     if (isRefusal(sql)) return (beforeBuilt = 'error');
     const built = await sandbox.psql({ db: 'before', user: 'postgres', sql: `${DATABASE_SHIM}\n${sql.sql}\n;\n${INTROSPECT_SQL}`, tuplesOnly: true, timeoutS: 60 });
-    const tables = parseTables(built.out);
+    const { tables } = parseDatabase(built.out);
     await sandbox.psql({ db: 'before', user: 'postgres', sql: `${USERS_SQL(users)}\n${seedSql(tables, users)}`, timeoutS: 30 });
     return (beforeBuilt = { tables, targets: seedTargets(tables) });
   }

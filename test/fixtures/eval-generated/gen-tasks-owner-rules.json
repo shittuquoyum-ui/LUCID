@@ -1,0 +1,15 @@
+{
+  "id": "gen-tasks-owner-rules",
+  "label": "safe",
+  "provable": false,
+  "what": "new table with owner-only rules",
+  "description": "A Supabase migration that adds a tasks table. Row level security is on, with rules so each person can only read, add, change and delete their own tasks.",
+  "model": "muse-spark-1.3",
+  "title": "add tasks table",
+  "files": [
+    {
+      "path": "supabase/migrations/20260214120000_add_tasks_table.sql",
+      "text": "create table public.tasks (\n  id uuid primary key default gen_random_uuid(),\n  owner_id uuid not null references auth.users (id) on delete cascade,\n  title text not null,\n  completed boolean not null default false,\n  created_at timestamptz not null default now()\n);\nalter table public.tasks enable row level security;\ncreate policy \"owners read their tasks\"\n  on public.tasks for select\n  using (auth.uid() = owner_id);\ncreate policy \"owners add tasks\"\n  on public.tasks for insert\n  with check (auth.uid() = owner_id);\ncreate policy \"owners change their tasks\"\n  on public.tasks for update\n  using (auth.uid() = owner_id)\n  with check (auth.uid() = owner_id);\ncreate policy \"owners delete their tasks\"\n  on public.tasks for delete\n  using (auth.uid() = owner_id);\n"
+    }
+  ]
+}

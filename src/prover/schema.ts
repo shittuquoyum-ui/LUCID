@@ -40,7 +40,33 @@ export interface TableInfo {
   policies: Policy[];
 }
 
-/** One query, one JSON value: every table in public with its columns, links and policies. */
+export interface ViewInfo {
+  name: string;
+  definition: string;
+  /** On: it reads with the reader's rights. Off: with its owner's, so row level security on the tables under it does not apply. */
+  securityInvoker: boolean;
+  anon: boolean;
+  authenticated: boolean;
+}
+
+export interface FunctionInfo {
+  name: string;
+  args: string;
+  returns: string;
+  /** It runs with its owner's rights, not the caller's. */
+  securityDefiner: boolean;
+  source: string;
+  anon: boolean;
+  authenticated: boolean;
+}
+
+export interface DatabaseInfo {
+  tables: TableInfo[];
+  views: ViewInfo[];
+  functions: FunctionInfo[];
+}
+
+/** One query, one JSON value: every table in public with its columns, links and policies, and the views and callable functions. */
 export const INTROSPECT_SQL = `
 select json_build_object('tables', coalesce((
   select json_agg(json_build_object(
@@ -65,21 +91,52 @@ select json_build_object('tables', coalesce((
   ) order by c.relname)
   from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public' and c.relkind in ('r', 'p')
+), '[]'::json), 'views', coalesce((
+  select json_agg(json_build_object(
+    'name', c.relname,
+    'definition', pg_get_viewdef(c.oid, true),
+    'securityInvoker', coalesce((select bool_or(o ~* '^security_invoker=(true|on|1)$') from unnest(c.reloptions) o), false),
+    'anon', has_table_privilege('anon', c.oid, 'select'),
+    'authenticated', has_table_privilege('authenticated', c.oid, 'select')
+  ) order by c.relname)
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind in ('v', 'm')
+), '[]'::json), 'functions', coalesce((
+  select json_agg(json_build_object(
+    'name', p.proname,
+    'args', pg_get_function_arguments(p.oid),
+    'returns', pg_get_function_result(p.oid),
+    'securityDefiner', p.prosecdef,
+    'source', left(p.prosrc, 1500),
+    'anon', has_function_privilege('anon', p.oid, 'execute'),
+    'authenticated', has_function_privilege('authenticated', p.oid, 'execute')
+  ) order by p.proname)
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.prokind = 'f' and p.prorettype <> 'trigger'::regtype
+    and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
 ), '[]'::json));
 `;
 
-/** The tables from the introspection output (psql, tuples only). */
-export const parseTables = (out: string): TableInfo[] => {
+/** Tables, views and functions from the introspection output (psql, tuples only). */
+export const parseDatabase = (out: string): DatabaseInfo => {
   const line = out.split('\n').find((l) => l.trim().startsWith('{'));
   if (!line) throw new Error(`could not read the database: ${out.slice(0, 300)}`);
-  const raw = JSON.parse(line) as { tables: (Omit<TableInfo, 'columns' | 'fks' | 'policies'> & Partial<Record<'columns' | 'fks' | 'policies', unknown[] | null>>)[] };
-  return raw.tables.map((t) => ({
-    name: t.name,
-    rls: t.rls,
-    columns: (t.columns ?? []) as Column[],
-    fks: (t.fks ?? []) as ForeignKey[],
-    policies: ((t.policies ?? []) as Policy[]).map((p) => ({ ...p, roles: p.roles ?? [] })),
-  }));
+  const raw = JSON.parse(line) as {
+    tables: (Omit<TableInfo, 'columns' | 'fks' | 'policies'> & Partial<Record<'columns' | 'fks' | 'policies', unknown[] | null>>)[];
+    views?: ViewInfo[];
+    functions?: FunctionInfo[];
+  };
+  return {
+    tables: raw.tables.map((t) => ({
+      name: t.name,
+      rls: t.rls,
+      columns: (t.columns ?? []) as Column[],
+      fks: (t.fks ?? []) as ForeignKey[],
+      policies: ((t.policies ?? []) as Policy[]).map((p) => ({ ...p, roles: p.roles ?? [] })),
+    })),
+    views: raw.views ?? [],
+    functions: raw.functions ?? [],
+  };
 };
 
 // --- owners ----------------------------------------------------------------------

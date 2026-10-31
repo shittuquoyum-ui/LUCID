@@ -18,6 +18,9 @@ export type SignalId =
   | 'policy-dropped'
   | 'policy-allows-all'
   | 'owner-check-removed'
+  | 'view-skips-rules'
+  | 'definer-without-caller-check'
+  | 'insert-without-owner-check'
   | 'bucket-made-public'
   | 'secret-in-browser-code'
   | 'service-role-in-browser-code'
@@ -48,6 +51,9 @@ const CATEGORY: Record<SignalId, RiskCategory> = {
   'policy-dropped': 'data-exposure',
   'policy-allows-all': 'data-exposure',
   'owner-check-removed': 'data-exposure',
+  'view-skips-rules': 'data-exposure',
+  'definer-without-caller-check': 'data-exposure',
+  'insert-without-owner-check': 'data-exposure',
   'bucket-made-public': 'data-exposure',
   'secret-in-browser-code': 'secrets',
   'service-role-in-browser-code': 'secrets',
@@ -67,6 +73,9 @@ const HINT: Record<SignalId, string> = {
   'policy-dropped': 'a database policy is dropped or removed and not created again',
   'policy-allows-all': 'a policy that lets every row through (true)',
   'owner-check-removed': 'a check against the signed-in user (auth.uid()) was removed and not added back',
+  'view-skips-rules': 'a view with no security_invoker: it reads as its owner, so row level security on the tables under it does not apply',
+  'definer-without-caller-check': 'a security definer function (it runs with its owner\'s rights) that never checks who is calling',
+  'insert-without-owner-check': 'a rule for adding rows that does not tie the owner column to the signed-in person',
   'bucket-made-public': 'a storage bucket is set to public',
   'secret-in-browser-code': 'a secret value (masked here) typed into a file that runs in the browser',
   'service-role-in-browser-code': 'the service role (full database access) is used in a file that runs in the browser',
@@ -110,6 +119,17 @@ const DROP_POLICY = /\bdrop\s+policy\s+(?:if\s+exists\s+)?("[^"]+"|[\w.]+)/i;
 const CREATE_POLICY = /\bcreate\s+policy\s+("[^"]+"|[\w.]+)/i;
 const ALLOW_ALL = /\b(?:using|with\s+check)\s*\(\s*true\s*\)/i;
 const OWNER_SQL = /\bauth\.uid\(\)/i;
+const CREATE_VIEW = /\bcreate\s+(?:or\s+replace\s+)?(?:materialized\s+)?view\b/i;
+const INVOKER_VIEW = /\bsecurity_invoker\s*=\s*(?:true|on|1)\b/i;
+const CREATE_FUNCTION = /\bcreate\s+(?:or\s+replace\s+)?function\b/i;
+const DEFINER = /\bsecurity\s+definer\b/i;
+const RETURNS_TRIGGER = /\breturns\s+trigger\b/i;
+const CALLER_CHECK = /\bauth\.(?:uid|role|jwt)\(\)/i;
+const INSERT_POLICY = /\bcreate\s+policy\b[\s\S]*\bfor\s+insert\b/i;
+const OWNER_WORD = String.raw`(?:user_?id|owner_?id|author_?id|created_by|creator_id|profile_?id|account_id|member_id|owner)`;
+const OWNER_COMPARED = new RegExp(String.raw`auth\.uid\(\)\s*\)?\s*=\s*[\w."]*${OWNER_WORD}\b|\b${OWNER_WORD}"?\s*=\s*\(?\s*(?:select\s+)?auth\.uid\(\)`, 'i');
+/** On these tables the row's own id is the person, so `auth.uid() = id` is the owner check. */
+const PERSON_TABLE = /\bon\s+(?:"?public"?\.)?"?(?:profiles?|users?|accounts?|members?)"?\s/i;
 const BUCKET = /\bbuckets?\b/i;
 const PUBLIC_TRUE = /\bpublic\b\s*[:=]\s*true\b|insert\s+into\s+storage\.buckets\b.*\btrue\b/i;
 const PAGE_PATH = /(^|\/)(app|pages)\//;
@@ -130,6 +150,24 @@ const DROP_TABLE = /\bdrop\s+table\b/i;
 const DELETE_ALL_SQL = /\bdelete\s+from\s+[\w."]+\s*;|\btruncate\s+(table\s+)?[\w."]+/i;
 
 const policyName = (m: RegExpMatchArray | null): string | null => m?.[1]?.replace(/"/g, '').toLowerCase() ?? null;
+
+/** The added SQL, one statement at a time, with the line it starts on. Function bodies between $$ marks stay whole. */
+const addedStatements = (added: DiffLine[]): { text: string; first: DiffLine }[] => {
+  const out: { text: string; first: DiffLine }[] = [];
+  let lines: DiffLine[] = [];
+  let inBody = false;
+  const flush = () => {
+    if (lines.length) out.push({ text: lines.map((l) => l.text).join('\n'), first: lines.find((l) => /^\s*create\b/i.test(l.text)) ?? lines[0]! });
+    lines = [];
+  };
+  for (const l of added) {
+    lines.push(l);
+    if ((l.text.match(/\$\w*\$/g)?.length ?? 0) % 2 === 1) inBody = !inBody;
+    if (!inBody && /;\s*(?:--.*)?$/.test(l.text)) flush();
+  }
+  flush();
+  return out;
+};
 
 // --- the checks --------------------------------------------------------------
 
@@ -170,6 +208,13 @@ export const findSignals = (files: DiffFile[]): Signal[] => {
     }
     if (!added.some((l) => OWNER_SQL.test(l.text))) {
       for (const l of removed) if (OWNER_SQL.test(l.text)) add('owner-check-removed', f, l);
+    }
+    if (f.path.endsWith('.sql')) {
+      for (const { text, first } of addedStatements(added)) {
+        if (CREATE_VIEW.test(text) && !INVOKER_VIEW.test(text)) add('view-skips-rules', f, first);
+        if (CREATE_FUNCTION.test(text) && DEFINER.test(text) && !RETURNS_TRIGGER.test(text) && !CALLER_CHECK.test(text)) add('definer-without-caller-check', f, first);
+        if (INSERT_POLICY.test(text) && !ALLOW_ALL.test(text) && !OWNER_COMPARED.test(text) && !PERSON_TABLE.test(text)) add('insert-without-owner-check', f, first);
+      }
     }
 
     // Secrets
@@ -245,6 +290,51 @@ export const recreatedNote = (files: DiffFile[]): string | null => {
     `RE-CREATED RULES: this change drops ${list} and creates ${names.length === 1 ? 'it' : 'them'} again under the same name.`,
     'The earlier version is not shown, so nothing here proves the new rule behaves differently from the old one.',
     'Never say it is new or "now" different. At most say what the commit did: it re-creates the rule (for example so the setup can run twice).',
+  ].join(' ');
+};
+
+export interface TightenedRule {
+  table: string;
+  before: string;
+  after: string;
+}
+
+/** The table of the rule around a line: the line itself or the few above it on the same side of the change. A rule often spans lines. */
+const ruleTable = (lines: DiffLine[], at: number, otherSide: DiffLine['status']): string | null => {
+  for (let i = at, seen = 0; i >= 0 && seen < 5; i -= 1) {
+    if (lines[i]!.status === otherSide) continue;
+    seen += 1;
+    const m = lines[i]!.text.match(/\bon\s+((?:"?\w+"?\.)?"?\w+"?)/i);
+    if (m) return m[1]!.replace(/"/g, '').replace(/^public\./i, '').toLowerCase();
+  }
+  return null;
+};
+
+/**
+ * Rules this change narrows where the diff itself shows both versions: a
+ * removed line that let every row through, and an added line on the same
+ * table that checks the person. Only lines in the diff count, so a `drop
+ * policy` whose old rule lives in another file is not one of these.
+ */
+export const tightenedRules = (files: DiffFile[]): TightenedRule[] => {
+  const side = (status: 'removed' | 'added', re: RegExp) =>
+    files.flatMap((f) =>
+      f.lines.flatMap((l, i) => (l.status === status && !l.redacted && re.test(l.text) ? [{ table: ruleTable(f.lines, i, status === 'removed' ? 'added' : 'removed'), code: l.text.trim() }] : [])),
+    );
+  const checked = side('added', OWNER_SQL);
+  return side('removed', ALLOW_ALL).flatMap((open) => {
+    const now = open.table ? checked.find((c) => c.table === open.table) : undefined;
+    return now ? [{ table: open.table!, before: open.code, after: now.code }] : [];
+  });
+};
+
+/** A note for every model that reads the change, or null when the diff does not show both versions of a narrowed rule. */
+export const tightenedNote = (files: DiffFile[]): string | null => {
+  const rules = tightenedRules(files);
+  if (!rules.length) return null;
+  return [
+    ...rules.map((r) => `RULE TIGHTENED: on ${r.table}, the removed line \`${r.before}\` let every row through, and the added line \`${r.after}\` checks the signed-in person.`),
+    'Both versions are in this change, so what the rule allowed before is proven by the diff. Say both in plain words: what it allowed before, and what it allows now.',
   ].join(' ');
 };
 

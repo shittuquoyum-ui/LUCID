@@ -86,7 +86,13 @@ const SetupFileSchema = z.object({ path: z.string().min(1).max(300), text: z.str
 export const ProveRequestSchema = z.object({
   before: z.array(SetupFileSchema).max(1000),
   after: z.array(SetupFileSchema).min(1).max(1000),
-  touched: z.object({ tables: z.array(z.string().max(200)).max(50), policies: z.array(z.string().max(200)).max(100) }),
+  touched: z.object({
+    tables: z.array(z.string().max(200)).max(50),
+    policies: z.array(z.string().max(200)).max(100),
+    // Extensions before 0.3.1 do not send these.
+    views: z.array(z.string().max(200)).max(50).default([]),
+    functions: z.array(z.string().max(200)).max(50).default([]),
+  }),
 });
 
 export interface ProveDeps {
@@ -126,6 +132,8 @@ export const handleProve = async (authorization: string | undefined, rawBody: st
   const after = prepareSetupFiles(input.after);
   if (!before || !after) return { status: 413, body: { error: 'too-large' } };
   if (!after.length) return { status: 400, body: { error: 'bad-request' } };
+  // The same database twice: nothing this commit did could show up, so no sandbox and no count against the limit.
+  if (JSON.stringify(before) === JSON.stringify(after)) return { status: 422, body: { error: 'no-database-change' } };
 
   const limit = prove.limits.take(user.id);
   if (!limit.ok) return { status: 429, body: { error: limit.reason } };

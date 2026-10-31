@@ -25,25 +25,36 @@ export interface Verdict {
   reason: string;
 }
 
-export const judgeInput = (table: TableInfo, evidence: Evidence): string =>
+export interface JudgeFacts {
+  /** The definitions of the views and functions the query used, if any. */
+  through?: string[];
+  /** The same query was blocked on the database as it was before this commit. */
+  blockedBefore?: boolean;
+}
+
+export const judgeInput = (table: TableInfo, evidence: Evidence, facts: JudgeFacts = {}): string =>
   JSON.stringify(
     {
       table: table.name,
       columns: table.columns.map((c) => `${c.name} ${c.type}`),
       policies: table.policies.map((p) => ({ name: p.name, command: p.command, roles: p.roles, using: p.using, withCheck: p.withCheck })),
       reachedBy: evidence.actor === 'anon' ? 'a signed-out visitor' : 'another signed-in user',
+      query: evidence.query,
+      ...(facts.through?.length ? { through: facts.through } : {}),
+      ...(evidence.hiddenByTableRule ? { hiddenByTableRule: true } : {}),
+      ...(facts.blockedBefore ? { blockedBefore: true } : {}),
     },
     null,
     2,
   );
 
 /** The verdict, or null when the judge never gave a valid one. */
-export const judgePrivacy = async (table: TableInfo, evidence: Evidence, provider: Provider, usage?: Usage): Promise<Verdict | null> => {
+export const judgePrivacy = async (table: TableInfo, evidence: Evidence, provider: Provider, usage?: Usage, facts: JudgeFacts = {}): Promise<Verdict | null> => {
   const system = prompt('judgePrivacy');
   let problems: string[] = [];
   for (let round = 0; round < 2; round += 1) {
     const note = problems.length ? `\n\nYOUR PREVIOUS ANSWER WAS REJECTED: ${problems.join('; ')}. Answer with the JSON only.` : '';
-    const text = await callModel(provider, { system, user: judgeInput(table, evidence) + note, effort: 'low', maxTokens: 3000, usage }, () =>
+    const text = await callModel(provider, { system, user: judgeInput(table, evidence, facts) + note, effort: 'low', maxTokens: 3000, usage }, () =>
       JSON.stringify({ clearlyPublic: false, reason: 'fake judge' }),
     );
     const parsed = parseWith(JudgeSchema, text);

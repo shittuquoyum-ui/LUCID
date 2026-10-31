@@ -271,6 +271,40 @@ describe('writeLesson', () => {
     expect(calls[2]!.user).toContain('fact check found a false claim: The title says the notes list now checks note owners');
   });
 
+  describe('a rule the diff shows narrowed', () => {
+    const file = 'supabase/schema.sql';
+    const narrowed = filterDiff(parseDiff([
+      `diff --git a/${file} b/${file}`, `--- a/${file}`, `+++ b/${file}`, '@@ -1,3 +1,3 @@',
+      ' create policy "read items"', '   on public.items for select', '-  using (true);', '+  using (auth.uid() = owner_id);', '',
+    ].join('\n'))).files;
+    const narrowPick = { ...goodPick, evidence: [{ file, line: 3, status: 'added', code: 'using (auth.uid() = owner_id);' }] } as unknown as Parameters<typeof writeLesson>[2];
+    const after = { file, line: 3, role: 'shows', code: 'using (auth.uid() = owner_id);', note: 'Only the owner matches.' };
+    const before = { file, line: 3, role: 'removed', code: 'using (true);', note: 'The old rule let every row through.' };
+
+    it('tells every model, and retries a lesson that leaves the old rule out', async () => {
+      vi.mocked(callModel).mockClear();
+      answers.push(JSON.stringify(lesson([after])), JSON.stringify(lesson([after, before])), verdict());
+      const r = await writeLesson(narrowed, null, narrowPick, null, 'meta', 'baseten');
+      expect(r.lesson?.quotes.map((q) => q.role)).toEqual(['shows', 'removed']);
+      expect(r.attempts[0]!.problems.join()).toContain('quote its removed line as the second quote');
+      const calls = vi.mocked(callModel).mock.calls.map((c) => c[1]);
+      expect(calls[0]!.user).toContain('RULE TIGHTENED: on items');
+      expect(calls.find((c) => c.system.includes('fact checker'))!.user).toContain('RULE TIGHTENED: on items');
+    });
+
+    it('keeps a true lesson even if it still leaves the old rule out after the retry', async () => {
+      answers.push(JSON.stringify(lesson([after])), JSON.stringify(lesson([after])), verdict());
+      const r = await writeLesson(narrowed, null, narrowPick, null, 'meta', 'baseten');
+      expect(r.lesson).not.toBeNull();
+    });
+
+    it('asks for nothing extra when the diff does not show the old rule', async () => {
+      answers.push(JSON.stringify(lesson([realQuote])), verdict());
+      const r = await writeLesson(files, null, goodPick as Parameters<typeof writeLesson>[2], null, 'meta', 'baseten');
+      expect(r.attempts[0]!.problems).toEqual([]);
+    });
+  });
+
   it('asks the fact checker again when its answer is not valid JSON', async () => {
     answers.push(JSON.stringify(lesson([realQuote])), 'Looks good to me!', verdict());
     const r = await writeLesson(files, null, pick, null, 'meta', 'baseten');

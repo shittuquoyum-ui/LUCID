@@ -50,6 +50,7 @@ Quote rules (code checks these; a quote that fails is deleted, and if all fail t
 - Lines marked '=' were removed and added back unchanged, so they are not new. They may be quoted as context with role "shows", but never describe them as something this change did.
 - Only describe what really behaves differently now. A rule that is deleted and written again, or copied into a new file, is not new if the app already did the same thing before. Another model checks every claim against the real BEFORE and AFTER.
 - When a "RE-CREATED RULES" note lists a rule, the change drops it and creates it again, and its old version is not shown. Never say it is new or that anything "now" works differently because of it. Say only what the commit did: it re-creates the rule (for example so setup can run twice).
+- When a "RULE TIGHTENED" note lists a rule, the diff shows both its versions. Say both in plain words: what the old rule allowed and what the new one allows. A removed line proves this, so here you may say what was open before. Give the removed line as your second quote, with role "removed". Say what the rule allowed, never that data was exposed, and nothing about other rules.
 - "note": a few plain words on what this line does.
 - Never quote a line marked [hidden by Lucid: ...].
 
