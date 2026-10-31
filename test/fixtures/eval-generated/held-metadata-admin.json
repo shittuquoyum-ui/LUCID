@@ -1,0 +1,16 @@
+{
+  "id": "held-metadata-admin",
+  "label": "risky",
+  "provable": false,
+  "heldOut": true,
+  "what": "read rule trusts a role people can set on themselves",
+  "description": "A Supabase migration that adds a read rule on the notes table so admins can see every note. It decides who is an admin from user_metadata in the sign-in token, which people can edit themselves.",
+  "model": "muse-spark-1.3",
+  "title": "allow admins to read all notes",
+  "files": [
+    {
+      "path": "supabase/migrations/20240115120000_allow_admins_read_notes.sql",
+      "text": "create policy \"admins can read all notes\"\n  on public.notes for select\n  using (\n    (auth.jwt() -> 'user_metadata' ->> 'is_admin') = 'true'\n  );\n"
+    }
+  ]
+}

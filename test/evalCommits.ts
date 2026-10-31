@@ -71,6 +71,8 @@ export interface GeneratedCommit {
   /** The description the model was given. */
   description: string;
   heldOut?: boolean;
+  /** Why a person changed the label after reading what the model wrote. */
+  auditNote?: string;
   model: string;
   title: string;
   files: SetupFile[];

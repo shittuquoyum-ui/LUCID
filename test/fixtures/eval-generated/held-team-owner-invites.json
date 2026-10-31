@@ -1,0 +1,16 @@
+{
+  "id": "held-team-owner-invites",
+  "label": "safe",
+  "provable": false,
+  "heldOut": true,
+  "what": "only a team's owner can add members",
+  "description": "A Supabase migration that adds teams, team members and team documents. Team documents can be read by members of that team. Only the owner of a team may add people to it.",
+  "model": "muse-spark-1.3",
+  "title": "Add teams, team members and team documents",
+  "files": [
+    {
+      "path": "supabase/migrations/20261031000000_add_teams.sql",
+      "text": "create table public.teams (id uuid primary key default gen_random_uuid(), owner_id uuid not null references auth.users (id) on delete cascade, name text not null);\ncreate table public.team_members (team_id uuid not null references public.teams (id) on delete cascade, user_id uuid not null references auth.users (id) on delete cascade, primary key (team_id, user_id));\ncreate table public.team_documents (id uuid primary key default gen_random_uuid(), team_id uuid not null references public.teams (id) on delete cascade, title text not null, body text);\nalter table public.teams enable row level security;\nalter table public.team_members enable row level security;\nalter table public.team_documents enable row level security;\ncreate function public.is_team_member(tid uuid) returns boolean language sql security definer stable set search_path = public as $$ select exists (select 1 from public.team_members where team_id = tid and user_id = auth.uid()) $$;\ncreate function public.is_team_owner(tid uuid) returns boolean language sql security definer stable set search_path = public as $$ select exists (select 1 from public.teams where id = tid and owner_id = auth.uid()) $$;\ncreate policy \"team members read documents\" on public.team_documents for select using (public.is_team_member(team_id));\ncreate policy \"team owners add members\" on public.team_members for insert with check (public.is_team_owner(team_id));\n"
+    }
+  ]
+}

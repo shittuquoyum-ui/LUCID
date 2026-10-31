@@ -55,6 +55,9 @@ const PRICES: Prices = {
 const PRICE_NOTE = 'both models at $1.25 per million input tokens and $4.25 per million output, the rate price trackers list (not taken from Meta\'s or Baseten\'s own price pages), and sandboxes at Modal\'s per-second rate. Treat it as an order of magnitude.';
 
 // --- fresh commits ---------------------------------------------------------------
+// The label starts as what was asked for. The model does not always write that,
+// so a person reads every generated commit and corrects its file (see auditNote).
+// A regenerated commit needs reading again.
 
 const BRIEFS: Omit<GeneratedCommit, 'model' | 'title' | 'files'>[] = [
   { id: 'gen-orders-any-user', label: 'risky', provable: true, what: 'read rule lets any signed-in user see every order', description: 'A Supabase migration that adds an orders table for a shop (who bought it, the item, the amount, the shipping address). Row level security is on, but the read rule lets any signed-in user see every order.' },

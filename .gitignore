@@ -5,7 +5,8 @@
 
 # Local lesson output and card previews
 lesson.md
-samples/
+samples/*
+!samples/eval/
 
 # Editor settings, except the launch config and build task that run the extension (F5)
 .vscode/*
